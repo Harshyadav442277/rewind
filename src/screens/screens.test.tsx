@@ -138,6 +138,8 @@ const HEALTH: HealthView = {
   chain: {
     reachable: true,
     mode: 'fake',
+    network: 'mainnet',
+    explorerBase: 'https://nimiq.watch/#',
     networkId: '24',
     blockNumber: 1_000_000,
     checkedAtMs: 1_700_000_000_000,
@@ -416,6 +418,25 @@ describe('Refund request', () => {
     expect(byTestId('refund-error-detail')?.textContent).toBe(
       'signer_not_payer: NQ11 OTHER does not match NQ64 P4YR',
     );
+  });
+
+  it('treats a 503 as submitted-but-unconfirmed, not as a rejection', async () => {
+    // The signature is consumed before anything reads the chain, so "the node could not be
+    // reached" never means the request failed — and re-signing would hit "nonce already
+    // used", which reads as a rejection to a buyer. The light-client rehearsal makes this
+    // the common case: it throws about transactions that exist for ~30 s after inclusion.
+    walletMock.sign.mockResolvedValue({
+      status: 'ok',
+      value: { publicKey: 'aa', signature: 'bb' },
+    });
+    apiMock.submitRefund.mockRejectedValue(
+      new FakeApiError('unavailable', 'Verification is delayed: the Nimiq node could not be reached.'),
+    );
+    await render(<RefundScreen orderId={ORDER.id} />);
+    await click(buttonWith('Sign refund request'));
+    expect(byTestId('refund-error')).toBeNull();
+    expect(text()).toContain('Verified and submitted');
+    expect(buttonWith('Back to order')).toBeTruthy();
   });
 });
 

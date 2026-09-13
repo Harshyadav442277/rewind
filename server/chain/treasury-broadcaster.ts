@@ -46,6 +46,48 @@ export const MAINNET_NETWORK_ID = 24;
 /** Luna per SIGNED serialised byte when the caller does not pin an absolute fee. */
 export const DEFAULT_FEE_PER_BYTE = 1;
 
+/**
+ * The networkId a treasury signer should use when nothing pins one. `REWIND_NETWORK_ID` wins;
+ * otherwise the testnet rehearsal (`REWIND_NETWORK=testnet`) is 5 and everything else is
+ * mainnet's 24. Signing for the wrong network produces a transaction every node rejects, so
+ * this default and the domain's `networkId` must agree — both derive from the same variables.
+ */
+export function treasuryNetworkIdFromEnv(env: NodeJS.ProcessEnv = process.env): number {
+  const explicit = env.REWIND_NETWORK_ID ? Number(env.REWIND_NETWORK_ID) : NaN;
+  if (Number.isInteger(explicit)) return explicit;
+  return env.REWIND_NETWORK === 'testnet' ? TESTNET_NETWORK_ID : MAINNET_NETWORK_ID;
+}
+
+/** Testnet Albatross. `client.getNetworkId()` returned 5 on testnet (light-client spike). */
+export const TESTNET_NETWORK_ID = 5;
+
+/**
+ * Shared by every broadcaster: a serialised transaction is lowercase hex, whole bytes, or it
+ * is not a transaction. Returns the normalised form so the two broadcasters send identical
+ * bytes for identical input, which is what makes re-broadcast on recovery idempotent.
+ */
+export function normalizeSerializedTx(serializedTx: string): string {
+  if (typeof serializedTx !== 'string' || !/^(?:[0-9a-fA-F]{2})+$/.test(serializedTx)) {
+    throw new Error('serialised transaction is not hex');
+  }
+  return serializedTx.toLowerCase();
+}
+
+/**
+ * Parses stored bytes back into a transaction and runs the same local consensus gate
+ * `TreasuryTxBuilder.prepare` runs before storing them — signature, data cap, sender !=
+ * recipient, and the network. Used by the light-client broadcaster, which unlike an RPC node
+ * has no server-side validator between it and the network: a transaction built for mainnet
+ * must never be pushed at testnet peers, or the other way round.
+ *
+ * Returns the hash the network will give these exact bytes.
+ */
+export function verifySerializedTx(serializedTx: string, networkId: number): { hash: string } {
+  const tx = Transaction.fromAny(normalizeSerializedTx(serializedTx));
+  tx.verify(Policy.MAX_SUPPORTED_VERSION, networkId);
+  return { hash: tx.hash() };
+}
+
 export interface TreasuryTxBuilderOptions {
   /** 32-byte Ed25519 private key, hex. Never logged and never leaves this object. */
   privateKeyHex: string;
@@ -76,10 +118,9 @@ export class TreasuryTxBuilder implements RefundTxBuilder {
   static fromEnv(env: NodeJS.ProcessEnv = process.env): TreasuryTxBuilder {
     const hex = env.REWIND_TREASURY_PRIVATE_KEY;
     if (!hex) throw new Error('REWIND_TREASURY_PRIVATE_KEY is not set');
-    const networkId = env.REWIND_NETWORK_ID ? Number(env.REWIND_NETWORK_ID) : undefined;
     return new TreasuryTxBuilder({
       privateKeyHex: hex,
-      ...(Number.isInteger(networkId) ? { networkId: networkId as number } : {}),
+      networkId: treasuryNetworkIdFromEnv(env),
     });
   }
 
@@ -177,9 +218,7 @@ export class RpcTxBroadcaster implements TxBroadcaster {
   }
 
   async broadcast(serializedTx: string): Promise<{ hash: string }> {
-    if (!/^(?:[0-9a-fA-F]{2})+$/.test(serializedTx)) {
-      throw new Error('serialised transaction is not hex');
-    }
+    const hex = normalizeSerializedTx(serializedTx);
     this.id += 1;
     const controller = new AbortController();
     const timeoutMs = this.options.timeoutMs ?? 15_000;
@@ -195,7 +234,7 @@ export class RpcTxBroadcaster implements TxBroadcaster {
           jsonrpc: '2.0',
           id: this.id,
           method: 'pushTransaction',
-          params: [serializedTx.toLowerCase()],
+          params: [hex],
         }),
         signal: controller.signal,
       });

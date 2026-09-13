@@ -1,0 +1,447 @@
+=== rewind spike — light-client sync ===
+started at           2026-09-13T14:57:21.873Z
+node                 v24.19.0 on win32/x64
+network              mainnet (MainAlbatross)
+log level            warn
+import @nimiq/core   22 ms
+
+built config         {"networkId":"MainAlbatross","seedNodes":["/dns4/aurora.seed.nimiq.com/tcp/443/wss","/dns4/catalyst.seed.nimiq.network/tcp/443/wss","/dns4/cipher.seed.nimiq-network.com/tcp/443/wss","/dns4/eclipse.seed.nimiq.cloud/tcp/443/wss","/dns4/lumina.seed.nimiq.systems/tcp/443/wss","/dns4/nebula.seed.nimiq.com/tcp/443/wss","/dns4/nexus.seed.nimiq.network/tcp/443/wss","/dns4/polaris.seed.nimiq-network.com/tcp/443/wss","/dns4/photon.seed.nimiq.cloud/tcp/443/wss","/dns4/pulsar.seed.nimiq.systems/tcp/443/wss","/dns4/quasar.seed.nimiq.com/tcp/443/wss","/dns4/solstice.seed.nimiq.network/tcp/443/wss","/dns4/vortex.seed.nimiq.cloud/tcp/443/wss","/dns4/zenith.seed.nimiq.systems/tcp/443/wss"],"logLevel":"warn","onlySecureWsConnections":true,"desiredPeerCount":12,"peerCountMax":50,"peerCountPerIpMax":10,"peerCountPerSubnetMax":10,"networkBufferSize":1024,"syncMode":"pico","numInitialConnections":4}
+Client WASM worker ready
+Client WASM worker loaded
+Sending NIMIQ_INIT message to client worker
+Initializing client WASM worker
+2026-09-13T14:57:22.010000000Z WARN  bls_cache            | idb: Couldn't create database error=indexed db not found
+
+Have client worker remote
+Client.create()      167 ms
+2026-09-13T14:57:21.997000000Z INFO  libp2p_swarm         | local_peer_id=12D3KooWSSumg44ErojhkHhXARq6gRB3FFpnztSfxdCmsMSyGdDE
+
+2026-09-13T14:57:22.011000000Z WARN  lib                  | Unable to set event listener for 'message' event: JsValue(TypeError: arg0.addEventListener is not a function
+TypeError: arg0.addEventListener is not a function
+    at C:\Users\hyada\dev\rewind\spikes\light-client\node_modules\@nimiq\core\nodejs\worker-wasm\index.js:1712:18
+    at handleError (C:\Users\hyada\dev\rewind\spikes\light-client\node_modules\@nimiq\core\nodejs\worker-wasm\index.js:2570:18)
+    at __wbg_addEventListener_e8bd29db0d73b9ff (C:\Users\hyada\dev\rewind\spikes\light-client\node_modules\@nimiq\core\nodejs\worker-wasm\index.js:1711:70)
+    at wasm://wasm/01d7532e:wasm-function[864]:0x1c9d09
+    at wasm://wasm/01d7532e:wasm-function[1681]:0x23e534
+    at wasm://wasm/01d7532e:wasm-function[5323]:0x31657a
+    at wasm://wasm/01d7532e:wasm-function[3699]:0x2cad8c
+    at wasm://wasm/01d7532e:wasm-function[5193]:0x310160
+    at wasm_bindgen_a0408da6add7f64d___convert__closures_____invoke___wasm_bindgen_a0408da6add7f64d___JsValue__core_f0fd674eaa06beef___result__Result_____wasm_bindgen_a0408da6add7f64d___JsError___true_ (C:\Users\hyada\dev\rewind\spikes\light-client\node_modules\@nimiq\core\nodejs\worker-wasm\index.js:2404:22)
+    at real (C:\Users\hyada\dev\rewind\spikes\light-client\node_modules\@nimiq\core\nodejs\worker-wasm\index.js:2617:20))
+
+2026-09-13T14:57:22.011000000Z ERROR bls_cache            | couldn't load keys from idb
+
+  [consensus] syncing @ +2203 ms
+  [peer] joined count=1 @ +2203 ms  12D3KooWSo86CSFY…
+2026-09-13T14:57:26.487000000Z ERROR bls_cache            | can't store keys in idb num=30
+
+2026-09-13T14:57:26.487000000Z ERROR bls_cache            | can't store keys in idb num=30
+
+  [consensus] syncing @ +11990 ms
+  [peer] joined count=2 @ +11990 ms  12D3KooWRHbDSkn6…
+  [consensus] syncing @ +12231 ms
+  [peer] joined count=3 @ +12232 ms  12D3KooWDZ77bjsk…
+  [consensus] syncing @ +12723 ms
+  [peer] joined count=4 @ +12723 ms  12D3KooWNa9gDAdi…
+2026-09-13T14:57:34.771000000Z WARN  sync_stream          | Conflicting macro block from peer block=61503900 head=61503897 current_epoch=1345 block_epoch=1344 peer_id=12D3KooWRHbDSkn6vZ3S81YGhZ5mBaZstFXzbojGMScMo7NhrWmv
+
+2026-09-13T14:57:35.462000000Z ERROR bls_cache            | can't store keys in idb num=30
+
+2026-09-13T14:57:35.462000000Z ERROR bls_cache            | can't store keys in idb num=30
+
+  [consensus] syncing @ +13687 ms
+  [peer] joined count=5 @ +13687 ms  12D3KooWHtxprriW…
+  [consensus] syncing @ +13814 ms
+  [peer] joined count=6 @ +13814 ms  12D3KooWN6U8Ut7T…
+2026-09-13T14:57:36.383000000Z ERROR bls_cache            | can't store keys in idb num=29
+
+  [consensus] syncing @ +15316 ms
+  [peer] joined count=7 @ +15316 ms  12D3KooWPR2nYYwR…
+2026-09-13T14:57:36.383000000Z ERROR bls_cache            | can't store keys in idb num=29
+
+2026-09-13T14:57:36.547000000Z ERROR bls_cache            | can't store keys in idb num=32
+
+2026-09-13T14:57:36.547000000Z ERROR bls_cache            | can't store keys in idb num=32
+
+2026-09-13T14:57:36.716000000Z ERROR bls_cache            | can't store keys in idb num=29
+
+2026-09-13T14:57:36.716000000Z ERROR bls_cache            | can't store keys in idb num=29
+
+2026-09-13T14:57:36.984000000Z ERROR bls_cache            | can't store keys in idb num=32
+
+2026-09-13T14:57:36.984000000Z ERROR bls_cache            | can't store keys in idb num=32
+
+2026-09-13T14:57:37.182000000Z ERROR bls_cache            | can't store keys in idb num=31
+
+2026-09-13T14:57:37.182000000Z ERROR bls_cache            | can't store keys in idb num=31
+
+2026-09-13T14:57:37.572000000Z ERROR bls_cache            | can't store keys in idb num=28
+
+2026-09-13T14:57:37.572000000Z ERROR bls_cache            | can't store keys in idb num=28
+
+2026-09-13T14:57:37.749000000Z ERROR bls_cache            | can't store keys in idb num=30
+
+2026-09-13T14:57:37.749000000Z ERROR bls_cache            | can't store keys in idb num=30
+
+2026-09-13T14:57:37.922000000Z ERROR bls_cache            | can't store keys in idb num=30
+
+2026-09-13T14:57:37.922000000Z ERROR bls_cache            | can't store keys in idb num=30
+
+2026-09-13T14:57:38.095000000Z ERROR bls_cache            | can't store keys in idb num=30
+
+2026-09-13T14:57:38.095000000Z ERROR bls_cache            | can't store keys in idb num=30
+
+2026-09-13T14:57:38.280000000Z ERROR bls_cache            | can't store keys in idb num=31
+
+2026-09-13T14:57:38.280000000Z ERROR bls_cache            | can't store keys in idb num=31
+
+2026-09-13T14:57:38.285000000Z WARN  queue                | Discarding block #61503904:MI:0631d09ccb - too far ahead (max 59572920)
+
+2026-09-13T14:57:38.705000000Z ERROR bls_cache            | can't store keys in idb num=30
+
+2026-09-13T14:57:38.705000000Z ERROR bls_cache            | can't store keys in idb num=30
+
+2026-09-13T14:57:38.914000000Z ERROR bls_cache            | can't store keys in idb num=32
+
+2026-09-13T14:57:38.914000000Z ERROR bls_cache            | can't store keys in idb num=32
+
+2026-09-13T14:57:39.082000000Z ERROR bls_cache            | can't store keys in idb num=30
+
+2026-09-13T14:57:39.082000000Z ERROR bls_cache            | can't store keys in idb num=30
+
+2026-09-13T14:57:39.250000000Z ERROR bls_cache            | can't store keys in idb num=31
+
+2026-09-13T14:57:39.250000000Z ERROR bls_cache            | can't store keys in idb num=31
+
+2026-09-13T14:57:39.424000000Z ERROR bls_cache            | can't store keys in idb num=30
+
+2026-09-13T14:57:39.424000000Z ERROR bls_cache            | can't store keys in idb num=30
+
+2026-09-13T14:57:39.818000000Z ERROR bls_cache            | can't store keys in idb num=31
+
+2026-09-13T14:57:39.818000000Z ERROR bls_cache            | can't store keys in idb num=31
+
+2026-09-13T14:57:40.000000000Z ERROR bls_cache            | can't store keys in idb num=28
+
+2026-09-13T14:57:40.000000000Z ERROR bls_cache            | can't store keys in idb num=28
+
+2026-09-13T14:57:40.184000000Z ERROR bls_cache            | can't store keys in idb num=28
+
+2026-09-13T14:57:40.184000000Z ERROR bls_cache            | can't store keys in idb num=28
+
+2026-09-13T14:57:40.355000000Z ERROR bls_cache            | can't store keys in idb num=29
+
+2026-09-13T14:57:40.356000000Z ERROR bls_cache            | can't store keys in idb num=29
+
+2026-09-13T14:57:40.526000000Z ERROR bls_cache            | can't store keys in idb num=29
+
+2026-09-13T14:57:40.526000000Z ERROR bls_cache            | can't store keys in idb num=29
+
+2026-09-13T14:57:40.947000000Z ERROR bls_cache            | can't store keys in idb num=29
+
+2026-09-13T14:57:40.947000000Z ERROR bls_cache            | can't store keys in idb num=29
+
+2026-09-13T14:57:41.339000000Z ERROR bls_cache            | can't store keys in idb num=31
+
+  [consensus] syncing @ +19798 ms
+  [peer] joined count=8 @ +19798 ms  12D3KooWQZaW3b8B…
+2026-09-13T14:57:41.339000000Z ERROR bls_cache            | can't store keys in idb num=31
+
+2026-09-13T14:57:41.339000000Z ERROR bls_cache            | can't store keys in idb num=29
+
+2026-09-13T14:57:41.339000000Z ERROR bls_cache            | can't store keys in idb num=29
+
+2026-09-13T14:57:41.506000000Z ERROR bls_cache            | can't store keys in idb num=29
+
+2026-09-13T14:57:41.506000000Z ERROR bls_cache            | can't store keys in idb num=29
+
+2026-09-13T14:57:41.668000000Z ERROR bls_cache            | can't store keys in idb num=30
+
+2026-09-13T14:57:41.668000000Z ERROR bls_cache            | can't store keys in idb num=30
+
+2026-09-13T14:57:41.675000000Z WARN  autonat              | Couldn't detect a public reachable address. Validator network operations won't be possible
+
+2026-09-13T14:57:41.675000000Z WARN  autonat              | You may need to find a relay to enable validator network operations
+
+2026-09-13T14:57:42.038000000Z ERROR bls_cache            | can't store keys in idb num=31
+
+2026-09-13T14:57:42.038000000Z ERROR bls_cache            | can't store keys in idb num=31
+
+2026-09-13T14:57:42.203000000Z ERROR bls_cache            | can't store keys in idb num=29
+
+2026-09-13T14:57:42.203000000Z ERROR bls_cache            | can't store keys in idb num=29
+
+2026-09-13T14:57:42.362000000Z ERROR bls_cache            | can't store keys in idb num=31
+
+2026-09-13T14:57:42.362000000Z ERROR bls_cache            | can't store keys in idb num=31
+
+2026-09-13T14:57:42.526000000Z ERROR bls_cache            | can't store keys in idb num=30
+
+2026-09-13T14:57:42.526000000Z ERROR bls_cache            | can't store keys in idb num=30
+
+2026-09-13T14:57:42.695000000Z ERROR bls_cache            | can't store keys in idb num=30
+
+2026-09-13T14:57:42.695000000Z ERROR bls_cache            | can't store keys in idb num=30
+
+2026-09-13T14:57:43.092000000Z ERROR bls_cache            | can't store keys in idb num=29
+
+2026-09-13T14:57:43.092000000Z ERROR bls_cache            | can't store keys in idb num=29
+
+2026-09-13T14:57:43.333000000Z ERROR bls_cache            | can't store keys in idb num=30
+
+2026-09-13T14:57:43.333000000Z ERROR bls_cache            | can't store keys in idb num=30
+
+2026-09-13T14:57:43.500000000Z ERROR bls_cache            | can't store keys in idb num=28
+
+2026-09-13T14:57:43.500000000Z ERROR bls_cache            | can't store keys in idb num=28
+
+2026-09-13T14:57:43.666000000Z ERROR bls_cache            | can't store keys in idb num=29
+
+2026-09-13T14:57:43.666000000Z ERROR bls_cache            | can't store keys in idb num=29
+
+2026-09-13T14:57:43.828000000Z ERROR bls_cache            | can't store keys in idb num=30
+
+2026-09-13T14:57:43.828000000Z ERROR bls_cache            | can't store keys in idb num=30
+
+2026-09-13T14:57:44.211000000Z ERROR bls_cache            | can't store keys in idb num=29
+
+2026-09-13T14:57:44.211000000Z ERROR bls_cache            | can't store keys in idb num=29
+
+2026-09-13T14:57:44.614000000Z ERROR bls_cache            | can't store keys in idb num=32
+
+2026-09-13T14:57:44.614000000Z ERROR bls_cache            | can't store keys in idb num=32
+
+2026-09-13T14:57:44.794000000Z ERROR bls_cache            | can't store keys in idb num=29
+
+2026-09-13T14:57:44.794000000Z ERROR bls_cache            | can't store keys in idb num=29
+
+2026-09-13T14:57:45.071000000Z ERROR bls_cache            | can't store keys in idb num=33
+
+2026-09-13T14:57:45.071000000Z ERROR bls_cache            | can't store keys in idb num=33
+
+2026-09-13T14:57:45.234000000Z ERROR bls_cache            | can't store keys in idb num=30
+
+2026-09-13T14:57:45.234000000Z ERROR bls_cache            | can't store keys in idb num=30
+
+2026-09-13T14:57:45.623000000Z ERROR bls_cache            | can't store keys in idb num=30
+
+2026-09-13T14:57:45.623000000Z ERROR bls_cache            | can't store keys in idb num=30
+
+2026-09-13T14:57:45.866000000Z ERROR bls_cache            | can't store keys in idb num=31
+
+2026-09-13T14:57:45.866000000Z ERROR bls_cache            | can't store keys in idb num=31
+
+2026-09-13T14:57:46.076000000Z ERROR bls_cache            | can't store keys in idb num=28
+
+2026-09-13T14:57:46.076000000Z ERROR bls_cache            | can't store keys in idb num=28
+
+2026-09-13T14:57:46.270000000Z ERROR bls_cache            | can't store keys in idb num=30
+
+2026-09-13T14:57:46.270000000Z ERROR bls_cache            | can't store keys in idb num=30
+
+2026-09-13T14:57:46.537000000Z ERROR bls_cache            | can't store keys in idb num=31
+
+2026-09-13T14:57:46.537000000Z ERROR bls_cache            | can't store keys in idb num=31
+
+2026-09-13T14:57:46.911000000Z ERROR bls_cache            | can't store keys in idb num=31
+
+2026-09-13T14:57:46.911000000Z ERROR bls_cache            | can't store keys in idb num=31
+
+2026-09-13T14:57:47.092000000Z ERROR bls_cache            | can't store keys in idb num=30
+
+2026-09-13T14:57:47.092000000Z ERROR bls_cache            | can't store keys in idb num=30
+
+2026-09-13T14:57:47.276000000Z ERROR bls_cache            | can't store keys in idb num=31
+
+2026-09-13T14:57:47.276000000Z ERROR bls_cache            | can't store keys in idb num=31
+
+2026-09-13T14:57:47.438000000Z ERROR bls_cache            | can't store keys in idb num=30
+
+2026-09-13T14:57:47.438000000Z ERROR bls_cache            | can't store keys in idb num=30
+
+2026-09-13T14:57:47.699000000Z ERROR bls_cache            | can't store keys in idb num=31
+
+2026-09-13T14:57:47.699000000Z ERROR bls_cache            | can't store keys in idb num=31
+
+2026-09-13T14:57:48.391000000Z ERROR bls_cache            | can't store keys in idb num=30
+
+2026-09-13T14:57:48.391000000Z ERROR bls_cache            | can't store keys in idb num=30
+
+2026-09-13T14:57:48.554000000Z ERROR bls_cache            | can't store keys in idb num=32
+
+2026-09-13T14:57:48.554000000Z ERROR bls_cache            | can't store keys in idb num=32
+
+2026-09-13T14:57:48.718000000Z ERROR bls_cache            | can't store keys in idb num=30
+
+2026-09-13T14:57:48.718000000Z ERROR bls_cache            | can't store keys in idb num=30
+
+2026-09-13T14:57:48.925000000Z ERROR bls_cache            | can't store keys in idb num=30
+
+2026-09-13T14:57:48.925000000Z ERROR bls_cache            | can't store keys in idb num=30
+
+  [consensus] established @ +29985 ms
+
+CONSENSUS ESTABLISHED
+  after Client.create()      29987 ms
+  after waitFor…() called    29818 ms
+  from process start         30014 ms   <-- cold-start number
+
+head height          61503920
+head hash            585003647d3ac15bbfb799093dea09a5f8ec6a2fffdd1f71197a2fd8ec8eb5b2
+networkId            24  (expected 24: MATCH)
+protocolVersion      2
+client version       2.1.0
+address book         29 peers
+  multiaddr protocol tally  {}
+  sample peer               {"peerId":"12D3KooWPfqQb5AsZPju6Mw9585E5nxKXkGtxeEqBQJJtcJFNPsx","address":"/dns4/pos.v2.nimiqwatch.com/tcp/443/wss","type":"history","services":["full-blocks","history","accounts-proof","accounts-chunk","transaction-index","pre-genesis-transactions"]}
+
+process.memoryUsage() after consensus (main thread; worker RSS is shared in rss):
+  rss                117.7 MB
+  heapTotal          10.1 MB
+  heapUsed           8.6 MB
+  external           5.1 MB
+  arrayBuffers       0.1 MB
+  resourceUsage.maxRSS  166.3 MB (peak, whole process)
+
+=== getTransactionsByAddress("NQ29 FBVT B4GM S27H UBP4 1MTC GNKQ VPBT 099M", limit 5, minPeers 1) ===
+took                 3563 ms
+returned             5 transactions
+
+--- tx[0] ---
+  transactionHash    f7b7235f48f3f7ba0429a13edcae39b3a182cedb61d5740943b15c61ea54dc12
+  state              confirmed
+  executionResult    true
+  blockHeight        61503900
+  confirmations      24
+  timestamp          1789311451053 (2026-09-13T14:57:31.053Z)
+  format             basic
+  sender             NQ81 C01N BASE 0000 0000 0000 0000 0000 0000 (basic)
+  recipient          NQ29 FBVT B4GM S27H UBP4 1MTC GNKQ VPBT 099M (basic)
+  value              9485792 Luna = 94.85792 NIM
+  fee                0 Luna (feePerByte 0)
+  validityStartHeight 61503900
+  network            mainalbatross
+  flags              0
+  size               48 bytes
+  data.type          raw
+  data (hex)         (empty)
+  data (utf8)        ""
+  proof.type         raw
+
+--- tx[1] ---
+  transactionHash    797f0f87567bf9f486b147405829923fcb35d102c716771109125884824a4e71
+  state              confirmed
+  executionResult    true
+  blockHeight        61503840
+  confirmations      84
+  timestamp          1789311391897 (2026-09-13T14:56:31.897Z)
+  format             basic
+  sender             NQ81 C01N BASE 0000 0000 0000 0000 0000 0000 (basic)
+  recipient          NQ29 FBVT B4GM S27H UBP4 1MTC GNKQ VPBT 099M (basic)
+  value              9621120 Luna = 96.21120 NIM
+  fee                0 Luna (feePerByte 0)
+  validityStartHeight 61503840
+  network            mainalbatross
+  flags              0
+  size               48 bytes
+  data.type          raw
+  data (hex)         (empty)
+  data (utf8)        ""
+  proof.type         raw
+
+--- tx[2] ---
+  transactionHash    13d79d2c152664612e8d8d047f22f3d22cadaef2aa26e5c570f78cf73f10b38f
+  state              confirmed
+  executionResult    true
+  blockHeight        61503780
+  confirmations      144
+  timestamp          1789311331897 (2026-09-13T14:55:31.897Z)
+  format             basic
+  sender             NQ81 C01N BASE 0000 0000 0000 0000 0000 0000 (basic)
+  recipient          NQ29 FBVT B4GM S27H UBP4 1MTC GNKQ VPBT 099M (basic)
+  value              9477120 Luna = 94.77120 NIM
+  fee                0 Luna (feePerByte 0)
+  validityStartHeight 61503780
+  network            mainalbatross
+  flags              0
+  size               48 bytes
+  data.type          raw
+  data (hex)         (empty)
+  data (utf8)        ""
+  proof.type         raw
+
+--- tx[3] ---
+  transactionHash    e6c9e646879bb65beee8f8bcf74b93c2b88a0682f4d7aa23eb2bfad6fc7423f1
+  state              confirmed
+  executionResult    true
+  blockHeight        61503720
+  confirmations      204
+  timestamp          1789311272795 (2026-09-13T14:54:32.795Z)
+  format             basic
+  sender             NQ81 C01N BASE 0000 0000 0000 0000 0000 0000 (basic)
+  recipient          NQ29 FBVT B4GM S27H UBP4 1MTC GNKQ VPBT 099M (basic)
+  value              9621152 Luna = 96.21152 NIM
+  fee                0 Luna (feePerByte 0)
+  validityStartHeight 61503720
+  network            mainalbatross
+  flags              0
+  size               48 bytes
+  data.type          raw
+  data (hex)         (empty)
+  data (utf8)        ""
+  proof.type         raw
+
+--- tx[4] ---
+  transactionHash    f965ffc4c55e36b05def8cf4b9cc542d9bcc8c30a63f1e86f74581af9ae15a93
+  state              confirmed
+  executionResult    true
+  blockHeight        61503660
+  confirmations      264
+  timestamp          1789311212795 (2026-09-13T14:53:32.795Z)
+  format             basic
+  sender             NQ81 C01N BASE 0000 0000 0000 0000 0000 0000 (basic)
+  recipient          NQ29 FBVT B4GM S27H UBP4 1MTC GNKQ VPBT 099M (basic)
+  value              9621120 Luna = 96.21120 NIM
+  fee                0 Luna (feePerByte 0)
+  validityStartHeight 61503660
+  network            mainalbatross
+  flags              0
+  size               48 bytes
+  data.type          raw
+  data (hex)         (empty)
+  data (utf8)        ""
+  proof.type         raw
+
+=== getTransaction("f7b7235f48f3f7ba0429a13edcae39b3a182cedb61d5740943b15c61ea54dc12") ===
+took                 474 ms
+  transactionHash    f7b7235f48f3f7ba0429a13edcae39b3a182cedb61d5740943b15c61ea54dc12
+  state              confirmed
+  executionResult    true
+  blockHeight        61503900
+  confirmations      24
+  timestamp          1789311451053 (2026-09-13T14:57:31.053Z)
+  format             basic
+  sender             NQ81 C01N BASE 0000 0000 0000 0000 0000 0000 (basic)
+  recipient          NQ29 FBVT B4GM S27H UBP4 1MTC GNKQ VPBT 099M (basic)
+  value              9485792 Luna = 94.85792 NIM
+  fee                0 Luna (feePerByte 0)
+  validityStartHeight 61503900
+  network            mainalbatross
+  flags              0
+  size               48 bytes
+  data.type          raw
+  data (hex)         (empty)
+  data (utf8)        ""
+  proof.type         raw
+  explorer           https://nimiq.watch/#f7b7235f48f3f7ba0429a13edcae39b3a182cedb61d5740943b15c61ea54dc12
+  hash matches ask   YES
+
+=== getAccount("NQ29 FBVT B4GM S27H UBP4 1MTC GNKQ VPBT 099M") ===
+took                 854 ms
+  {"type":"basic","balance":177549105160}
+  balance            177549105160 Luna = 1775491.05160 NIM
+
+total wall clock     34911 ms
+
+RESULT {"network":"mainnet","networkName":"MainAlbatross","startedAt":"2026-09-13T14:57:21.873Z","node":"v24.19.0","platform":"win32 x64","importMs":22,"config":{"networkId":"MainAlbatross","seedNodes":["/dns4/aurora.seed.nimiq.com/tcp/443/wss","/dns4/catalyst.seed.nimiq.network/tcp/443/wss","/dns4/cipher.seed.nimiq-network.com/tcp/443/wss","/dns4/eclipse.seed.nimiq.cloud/tcp/443/wss","/dns4/lumina.seed.nimiq.systems/tcp/443/wss","/dns4/nebula.seed.nimiq.com/tcp/443/wss","/dns4/nexus.seed.nimiq.network/tcp/443/wss","/dns4/polaris.seed.nimiq-network.com/tcp/443/wss","/dns4/photon.seed.nimiq.cloud/tcp/443/wss","/dns4/pulsar.seed.nimiq.systems/tcp/443/wss","/dns4/quasar.seed.nimiq.com/tcp/443/wss","/dns4/solstice.seed.nimiq.network/tcp/443/wss","/dns4/vortex.seed.nimiq.cloud/tcp/443/wss","/dns4/zenith.seed.nimiq.systems/tcp/443/wss"],"logLevel":"warn","onlySecureWsConnections":true,"desiredPeerCount":12,"peerCountMax":50,"peerCountPerIpMax":10,"peerCountPerSubnetMax":10,"networkBufferSize":1024,"syncMode":"pico","numInitialConnections":4},"createMs":167,"consensusMsAfterCreate":29987,"consensusMsFromProcessStart":30014,"consensusEvents":[{"state":"syncing","atMsAfterCreate":2203},{"state":"syncing","atMsAfterCreate":11990},{"state":"syncing","atMsAfterCreate":12231},{"state":"syncing","atMsAfterCreate":12723},{"state":"syncing","atMsAfterCreate":13687},{"state":"syncing","atMsAfterCreate":13814},{"state":"syncing","atMsAfterCreate":15316},{"state":"syncing","atMsAfterCreate":19798},{"state":"established","atMsAfterCreate":29985}],"headHeight":61503920,"headHash":"585003647d3ac15bbfb799093dea09a5f8ec6a2fffdd1f71197a2fd8ec8eb5b2","networkId":24,"protocolVersion":2,"clientVersion":"2.1.0","addressBookSize":29,"networkIdMatchesExpected":true,"multiaddrProtocols":{},"samplePeer":{"peerId":"12D3KooWPfqQb5AsZPju6Mw9585E5nxKXkGtxeEqBQJJtcJFNPsx","address":"/dns4/pos.v2.nimiqwatch.com/tcp/443/wss","type":"history","services":["full-blocks","history","accounts-proof","accounts-chunk","transaction-index","pre-genesis-transactions"]},"memoryAfterConsensus":{"rssBytes":123432960,"heapUsedBytes":8974048,"externalBytes":5391764,"arrayBuffersBytes":146567,"maxRSSKb":170272},"getTransactionsByAddressMs":3563,"getTransactionsByAddressCount":5,"transactions":[{"hash":"f7b7235f48f3f7ba0429a13edcae39b3a182cedb61d5740943b15c61ea54dc12","state":"confirmed","blockHeight":61503900,"value":9485792,"sender":"NQ81 C01N BASE 0000 0000 0000 0000 0000 0000","recipient":"NQ29 FBVT B4GM S27H UBP4 1MTC GNKQ VPBT 099M","dataHex":"","dataUtf8":""},{"hash":"797f0f87567bf9f486b147405829923fcb35d102c716771109125884824a4e71","state":"confirmed","blockHeight":61503840,"value":9621120,"sender":"NQ81 C01N BASE 0000 0000 0000 0000 0000 0000","recipient":"NQ29 FBVT B4GM S27H UBP4 1MTC GNKQ VPBT 099M","dataHex":"","dataUtf8":""},{"hash":"13d79d2c152664612e8d8d047f22f3d22cadaef2aa26e5c570f78cf73f10b38f","state":"confirmed","blockHeight":61503780,"value":9477120,"sender":"NQ81 C01N BASE 0000 0000 0000 0000 0000 0000","recipient":"NQ29 FBVT B4GM S27H UBP4 1MTC GNKQ VPBT 099M","dataHex":"","dataUtf8":""},{"hash":"e6c9e646879bb65beee8f8bcf74b93c2b88a0682f4d7aa23eb2bfad6fc7423f1","state":"confirmed","blockHeight":61503720,"value":9621152,"sender":"NQ81 C01N BASE 0000 0000 0000 0000 0000 0000","recipient":"NQ29 FBVT B4GM S27H UBP4 1MTC GNKQ VPBT 099M","dataHex":"","dataUtf8":""},{"hash":"f965ffc4c55e36b05def8cf4b9cc542d9bcc8c30a63f1e86f74581af9ae15a93","state":"confirmed","blockHeight":61503660,"value":9621120,"sender":"NQ81 C01N BASE 0000 0000 0000 0000 0000 0000","recipient":"NQ29 FBVT B4GM S27H UBP4 1MTC GNKQ VPBT 099M","dataHex":"","dataUtf8":""}],"getTransactionMs":474,"getTransactionHash":"f7b7235f48f3f7ba0429a13edcae39b3a182cedb61d5740943b15c61ea54dc12","getTransactionMatchesRequested":true,"getAccountMs":854,"account":{"type":"basic","balance":177549105160},"totalMs":34911,"memoryAtEnd":{"rssBytes":124764160}}
+EXIT=0

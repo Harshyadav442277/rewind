@@ -1,0 +1,44 @@
+Client WASM worker ready
+Client WASM worker loaded
+Sending NIMIQ_INIT message to client worker
+Initializing client WASM worker
+2026-09-13T14:58:25.020000000Z WARN  bls_cache            | idb: Couldn't create database error=indexed db not found
+
+Have client worker remote
+2026-09-13T14:58:25.005000000Z INFO  libp2p_swarm         | local_peer_id=12D3KooWJA361QAstapTahn3MHgMnKEaf8UHaKhRFxCcULZPanLG
+
+2026-09-13T14:58:25.021000000Z WARN  lib                  | Unable to set event listener for 'message' event: JsValue(TypeError: arg0.addEventListener is not a function
+TypeError: arg0.addEventListener is not a function
+    at C:\Users\hyada\dev\rewind\spikes\light-client\node_modules\@nimiq\core\nodejs\worker-wasm\index.js:1712:18
+    at handleError (C:\Users\hyada\dev\rewind\spikes\light-client\node_modules\@nimiq\core\nodejs\worker-wasm\index.js:2570:18)
+    at __wbg_addEventListener_e8bd29db0d73b9ff (C:\Users\hyada\dev\rewind\spikes\light-client\node_modules\@nimiq\core\nodejs\worker-wasm\index.js:1711:70)
+    at wasm://wasm/01d7532e:wasm-function[864]:0x1c9d09
+    at wasm://wasm/01d7532e:wasm-function[1681]:0x23e534
+    at wasm://wasm/01d7532e:wasm-function[5323]:0x31657a
+    at wasm://wasm/01d7532e:wasm-function[3699]:0x2cad8c
+    at wasm://wasm/01d7532e:wasm-function[5193]:0x310160
+    at wasm_bindgen_a0408da6add7f64d___convert__closures_____invoke___wasm_bindgen_a0408da6add7f64d___JsValue__core_f0fd674eaa06beef___result__Result_____wasm_bindgen_a0408da6add7f64d___JsError___true_ (C:\Users\hyada\dev\rewind\spikes\light-client\node_modules\@nimiq\core\nodejs\worker-wasm\index.js:2404:22)
+    at real (C:\Users\hyada\dev\rewind\spikes\light-client\node_modules\@nimiq\core\nodejs\worker-wasm\index.js:2617:20))
+
+2026-09-13T14:58:25.021000000Z ERROR bls_cache            | couldn't load keys from idb
+
+2026-09-13T14:58:27.950000000Z ERROR bls_cache            | can't store keys in idb num=10
+
+2026-09-13T14:58:27.950000000Z ERROR bls_cache            | can't store keys in idb num=10
+
+boot (consensus)     4755 ms   <-- paid once per PROCESS
+getBlockNumber       11344043  (source=network)
+getBlockNumber again 11344043  (source=cache)
+getAccountByAddress  {"address":"NQ37 7C3V VMN8 FRPN FXS9 PLAG JMRE 8SC6 KUSQ","balance":87537022494295,"type":"basic"}
+2026-09-13T14:58:32.259000000Z ERROR consensus_proxy      | There was an error requesting transaction proof from peer peer=12D3KooWCADdu61FiZDk1JbsuPyt4WMxGmy5GZHAxY3MHUkZVjzN error=Inbound error: No receiver for request
+
+2026-09-13T14:58:32.685000000Z ERROR consensus_proxy      | There was an error requesting transaction proof from peer peer=12D3KooWK4gm6Msrbm4essazLLjTjtMkxiSYT1QBh3ukXX6HgcL6 error=Inbound error: No receiver for request
+
+getTransactionsByAddress -> 3
+   fb0b3d61ba105a6fa747085b351c3dd55664176559c5c18b7e5dc452f6fb7ae2 block=11343845 networkId=5 state=confirmed value=100000
+   e6c108b90b03b0fbf6eff66e98697d62b7233b9d0d14d749058226ebfb01e4cf block=11343081 networkId=5 state=confirmed value=11000000000
+   c240b0287117ed913b6e850788d3d58151d9035b9d093e744fffc07568e7dd56 block=11333585 networkId=5 state=confirmed value=11000000000
+getTransactionByHash -> {"hash":"fb0b3d61ba105a6fa747085b351c3dd55664176559c5c18b7e5dc452f6fb7ae2","blockNumber":11343845,"timestamp":1789311313611,"confirmations":203,"from":"NQ17 XYLE 5FBG M0A2 Q7TC Y82U A7M6 AS0D G6VH","to":"NQ37 7C3V VMN8 FRPN FXS9 PLAG JMRE 8SC6 KUSQ","value":100000,"fee":189,"recipientData":"726577696e643a6c633a31373839333131333033323035","validityStartHeight":11343840,"executionResult":true,"networkId":5,"state":"confirmed"}
+unknown hash -> THREW ChainUnavailableError: Transaction not found
+   ^ this is the semantic gap: indistinguishable from a peer failure.
+EXIT=0

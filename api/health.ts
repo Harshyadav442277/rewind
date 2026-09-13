@@ -1,4 +1,4 @@
-import { DEMO_MERCHANT, getDeps, IS_FAKE_CHAIN, REPO_MODE } from './_lib/deps';
+import { DEMO_MERCHANT, getDeps, IS_FAKE_CHAIN, IS_LIGHT_CLIENT, NETWORK_NAME, REPO_MODE } from './_lib/deps';
 import {
   clientIp,
   methodNotAllowed,
@@ -9,6 +9,7 @@ import {
   type ApiResponse,
 } from './_lib/http';
 import { DEFAULT_LIMITS, rateLimit } from './_lib/ratelimit';
+import { explorerBase } from './_lib/views';
 import { formatLuna } from '../server/domain/nimiq';
 import { ChainUnavailableError } from '../server/domain/ports';
 
@@ -66,7 +67,12 @@ export default withErrors(async (req: ApiRequest, res: ApiResponse) => {
   return sendJson(res, 200, {
     chain: {
       reachable,
-      mode: IS_FAKE_CHAIN ? 'fake' : 'rpc',
+      mode: IS_FAKE_CHAIN ? 'fake' : IS_LIGHT_CLIENT ? 'lightclient' : 'rpc',
+      // The frontend has no way of knowing which chain it is looking at otherwise, and
+      // "testnet" is the difference between a rehearsal and real money. Every explorer link in
+      // a view is already built server-side from this same base.
+      network: NETWORK_NAME,
+      explorerBase: explorerBase(),
       networkId: String(deps.config.networkId),
       blockNumber,
       checkedAtMs,

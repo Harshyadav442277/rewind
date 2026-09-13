@@ -1,0 +1,109 @@
+=== rewind spike — light-client sync ===
+started at           2026-09-13T14:51:51.166Z
+node                 v24.19.0 on win32/x64
+network              testnet (TestAlbatross)
+log level            info
+import @nimiq/core   23 ms
+
+built config         {"networkId":"TestAlbatross","seedNodes":["/dns4/aurora.seed.nimiq.com/tcp/443/wss","/dns4/catalyst.seed.nimiq.network/tcp/443/wss","/dns4/cipher.seed.nimiq-network.com/tcp/443/wss","/dns4/eclipse.seed.nimiq.cloud/tcp/443/wss","/dns4/lumina.seed.nimiq.systems/tcp/443/wss","/dns4/nebula.seed.nimiq.com/tcp/443/wss","/dns4/nexus.seed.nimiq.network/tcp/443/wss","/dns4/polaris.seed.nimiq-network.com/tcp/443/wss","/dns4/photon.seed.nimiq.cloud/tcp/443/wss","/dns4/pulsar.seed.nimiq.systems/tcp/443/wss","/dns4/quasar.seed.nimiq.com/tcp/443/wss","/dns4/solstice.seed.nimiq.network/tcp/443/wss","/dns4/vortex.seed.nimiq.cloud/tcp/443/wss","/dns4/zenith.seed.nimiq.systems/tcp/443/wss"],"logLevel":"info","onlySecureWsConnections":true,"desiredPeerCount":12,"peerCountMax":50,"peerCountPerIpMax":10,"peerCountPerSubnetMax":10,"networkBufferSize":1024,"syncMode":"pico","numInitialConnections":4}
+Client WASM worker ready
+Client WASM worker loaded
+Sending NIMIQ_INIT message to client worker
+Initializing client WASM worker
+2026-09-13T14:51:51.300000000Z WARN  bls_cache            | idb: Couldn't create database error=indexed db not found
+
+Have client worker remote
+Client.create()      157 ms
+2026-09-13T14:51:51.272000000Z INFO  lib                  | Web config web_config=ClientConfiguration { network_id: TestAlbatross, seed_nodes: ["/dns4/aurora.seed.nimiq.com/tcp/443/wss", "/dns4/catalyst.seed.nimiq.network/tcp/443/wss", "/dns4/cipher.seed.nimiq-network.com/tcp/443/wss", "/dns4/eclipse.seed.nimiq.cloud/tcp/443/wss", "/dns4/lumina.seed.nimiq.systems/tcp/443/wss", "/dns4/nebula.seed.nimiq.com/tcp/443/wss", "/dns4/nexus.seed.nimiq.network/tcp/443/wss", "/dns4/polaris.seed.nimiq-network.com/tcp/443/wss", "/dns4/photon.seed.nimiq.cloud/tcp/443/wss", "/dns4/pulsar.seed.nimiq.systems/tcp/443/wss", "/dns4/quasar.seed.nimiq.com/tcp/443/wss", "/dns4/solstice.seed.nimiq.network/tcp/443/wss", "/dns4/vortex.seed.nimiq.cloud/tcp/443/wss", "/dns4/zenith.seed.nimiq.systems/tcp/443/wss"], log_level: "info", only_secure_ws_connections: true, desired_peer_count: 12, peer_count_max: 50, peer_count_per_ip_max: 10, peer_count_per_subnet_max: 10, network_buffer_size: 1024, sync_mode: "pico", num_initial_connections: 4 }
+
+2026-09-13T14:51:51.273000000Z INFO  lib                  | Final configuration config=ClientConfig { network: NetworkConfig { listen_addresses: [], advertised_addresses: None, user_agent: UserAgent("core-rs-albatross/2.1.0 (native;  wasm32)"), seeds: [Seed { address: /dns4/aurora.seed.nimiq.com/tcp/443/wss }, Seed { address: /dns4/catalyst.seed.nimiq.network/tcp/443/wss }, Seed { address: /dns4/cipher.seed.nimiq-network.com/tcp/443/wss }, Seed { address: /dns4/eclipse.seed.nimiq.cloud/tcp/443/wss }, Seed { address: /dns4/lumina.seed.nimiq.systems/tcp/443/wss }, Seed { address: /dns4/nebula.seed.nimiq.com/tcp/443/wss }, Seed { address: /dns4/nexus.seed.nimiq.network/tcp/443/wss }, Seed { address: /dns4/polaris.seed.nimiq-network.com/tcp/443/wss }, Seed { address: /dns4/photon.seed.nimiq.cloud/tcp/443/wss }, Seed { address: /dns4/pulsar.seed.nimiq.systems/tcp/443/wss }, Seed { address: /dns4/quasar.seed.nimiq.com/tcp/443/wss }, Seed { address: /dns4/solstice.seed.nimiq.network/tcp/443/wss }, Seed { address: /dns4/vortex.seed.nimiq.cloud/tcp/443/wss }, Seed { address: /dns4/zenith.seed.nimiq.systems/tcp/443/wss }], tls: None, desired_peer_count: 12, peer_count_max: 50, peer_count_per_ip_max: 10, peer_count_per_subnet_max: 10, only_secure_ws_connections: true, allow_loopback_addresses: false, dht_quorum: None, num_initial_connections: 4, network_buffer_size: 1024 }, consensus: ConsensusConfig { sync_mode: Pico, min_peers: 3, max_epochs_stored: 1, full_sync_threshold: 10800, index_history: true }, network_id: TestAlbatross, storage: Volatile }
+
+2026-09-13T14:51:51.274000000Z INFO  lib                  | Initializing light client
+
+2026-09-13T14:51:51.284000000Z INFO  client               | Identity public key: PublicKey { publickey: Ed25519(PublicKey(compressed): e4e3102392551de4e5948453efefcee3cba67545667cb4dd1fbfaf924e8c7) }
+
+2026-09-13T14:51:51.284000000Z INFO  client               | PeerId: 12D3KooWRDqwT64cfZpTzpNoQb9c4ptYUn8x8bRM7D6KxGCVv9Vg
+
+2026-09-13T14:51:51.284000000Z INFO  client               | Client configured as a pico node
+
+2026-09-13T14:51:51.287000000Z INFO  libp2p_swarm         | local_peer_id=12D3KooWRDqwT64cfZpTzpNoQb9c4ptYUn8x8bRM7D6KxGCVv9Vg
+
+2026-09-13T14:51:51.299000000Z INFO  lib                  | Web client initialized
+
+2026-09-13T14:51:51.299000000Z INFO  lib                  | Spawning consensus
+
+2026-09-13T14:51:51.300000000Z WARN  lib                  | Unable to set event listener for 'message' event: JsValue(TypeError: arg0.addEventListener is not a function
+TypeError: arg0.addEventListener is not a function
+    at C:\Users\hyada\dev\rewind\spikes\light-client\node_modules\@nimiq\core\nodejs\worker-wasm\index.js:1712:18
+    at handleError (C:\Users\hyada\dev\rewind\spikes\light-client\node_modules\@nimiq\core\nodejs\worker-wasm\index.js:2570:18)
+    at __wbg_addEventListener_e8bd29db0d73b9ff (C:\Users\hyada\dev\rewind\spikes\light-client\node_modules\@nimiq\core\nodejs\worker-wasm\index.js:1711:70)
+    at wasm://wasm/01d7532e:wasm-function[864]:0x1c9d09
+    at wasm://wasm/01d7532e:wasm-function[1681]:0x23e534
+    at wasm://wasm/01d7532e:wasm-function[5323]:0x31657a
+    at wasm://wasm/01d7532e:wasm-function[3699]:0x2cad8c
+    at wasm://wasm/01d7532e:wasm-function[5193]:0x310160
+    at wasm_bindgen_a0408da6add7f64d___convert__closures_____invoke___wasm_bindgen_a0408da6add7f64d___JsValue__core_f0fd674eaa06beef___result__Result_____wasm_bindgen_a0408da6add7f64d___JsError___true_ (C:\Users\hyada\dev\rewind\spikes\light-client\node_modules\@nimiq\core\nodejs\worker-wasm\index.js:2404:22)
+    at real (C:\Users\hyada\dev\rewind\spikes\light-client\node_modules\@nimiq\core\nodejs\worker-wasm\index.js:2617:20))
+
+2026-09-13T14:51:51.301000000Z ERROR bls_cache            | couldn't load keys from idb
+
+2026-09-13T14:51:53.086000000Z INFO  swarm                | Connection closed with peer connection_id=4 peer_id=12D3KooWPR2nYYwRiZ7Wf8Lt1yJhaM9F31gHY4pFK939ndVYb9sA endpoint=Dialer { address: /dns4/pulsar.seed.nimiq.systems/tcp/443/wss, role_override: Dialer, port_use: Reuse } connections=0
+
+  [consensus] connecting @ +1928 ms
+  [peer] left count=0 @ +1928 ms  12D3KooWPR2nYYwR…
+2026-09-13T14:51:53.412000000Z INFO  swarm                | Connection closed with peer connection_id=1 peer_id=12D3KooWDZ77bjskagVQXBpb4QkJ28eQxu9Dk3KAgYFCBdb86tPr endpoint=Dialer { address: /dns4/vortex.seed.nimiq.cloud/tcp/443/wss, role_override: Dialer, port_use: Reuse } connections=0
+
+  [consensus] connecting @ +2239 ms
+  [peer] left count=0 @ +2239 ms  12D3KooWDZ77bjsk…
+2026-09-13T14:52:02.844000000Z INFO  swarm                | Connection closed with peer connection_id=5 peer_id=12D3KooWBxKzBNCtpffbNMV6dtN9vhbP2c2mzHaYicKCaWPkHChk endpoint=Dialer { address: /dns4/nebula.seed.nimiq.com/tcp/443/wss, role_override: Dialer, port_use: Reuse } connections=0
+
+  [consensus] connecting @ +11671 ms
+  [peer] left count=0 @ +11671 ms  12D3KooWBxKzBNCt…
+2026-09-13T14:52:02.980000000Z INFO  swarm                | Connection closed with peer connection_id=7 peer_id=12D3KooWRHbDSkn6vZ3S81YGhZ5mBaZstFXzbojGMScMo7NhrWmv endpoint=Dialer { address: /dns4/photon.seed.nimiq.cloud/tcp/443/wss, role_override: Dialer, port_use: Reuse } connections=0
+
+  [consensus] connecting @ +11807 ms
+  [peer] left count=0 @ +11807 ms  12D3KooWRHbDSkn6…
+2026-09-13T14:52:12.964000000Z INFO  swarm                | Connection closed with peer connection_id=9 peer_id=12D3KooWDZ77bjskagVQXBpb4QkJ28eQxu9Dk3KAgYFCBdb86tPr endpoint=Dialer { address: /dns4/vortex.seed.nimiq.cloud/tcp/443/wss, role_override: Dialer, port_use: Reuse } connections=0
+
+  [consensus] connecting @ +21791 ms
+  [peer] left count=0 @ +21791 ms  12D3KooWDZ77bjsk…
+2026-09-13T14:52:13.002000000Z INFO  swarm                | Connection closed with peer connection_id=12 peer_id=12D3KooWPR2nYYwRiZ7Wf8Lt1yJhaM9F31gHY4pFK939ndVYb9sA endpoint=Dialer { address: /dns4/pulsar.seed.nimiq.systems/tcp/443/wss, role_override: Dialer, port_use: Reuse } connections=0
+
+  [consensus] connecting @ +21829 ms
+  [peer] left count=0 @ +21829 ms  12D3KooWPR2nYYwR…
+2026-09-13T14:52:13.142000000Z INFO  swarm                | Connection closed with peer connection_id=11 peer_id=12D3KooWFYDJCyvFGNS12hnd5RiiGVwyRKXRj4a6M3Z3GYDx2ZNK endpoint=Dialer { address: /dns4/nexus.seed.nimiq.network/tcp/443/wss, role_override: Dialer, port_use: Reuse } connections=0
+
+  [consensus] connecting @ +21969 ms
+  [peer] left count=0 @ +21969 ms  12D3KooWFYDJCyvF…
+2026-09-13T14:52:13.565000000Z INFO  swarm                | Connection closed with peer connection_id=10 peer_id=12D3KooWEn8XccNwf4XpXN1idzLFc8QjocSjFVA3nrueqpRKDn8k endpoint=Dialer { address: /dns4/quasar.seed.nimiq.com/tcp/443/wss, role_override: Dialer, port_use: Reuse } connections=0
+
+  [consensus] connecting @ +22392 ms
+  [peer] left count=0 @ +22392 ms  12D3KooWEn8XccNw…
+2026-09-13T14:52:14.883000000Z INFO  swarm                | Connection closed with peer connection_id=15 peer_id=12D3KooWRHbDSkn6vZ3S81YGhZ5mBaZstFXzbojGMScMo7NhrWmv endpoint=Dialer { address: /dns4/photon.seed.nimiq.cloud/tcp/443/wss, role_override: Dialer, port_use: Reuse } connections=0
+
+  [consensus] connecting @ +23710 ms
+  [peer] left count=0 @ +23710 ms  12D3KooWRHbDSkn6…
+2026-09-13T14:52:14.899000000Z INFO  swarm                | Connection closed with peer connection_id=13 peer_id=12D3KooWSo86CSFYWjQwVAyFe8njQkwFJd3nmKqDPiiVbSTuvjUV endpoint=Dialer { address: /dns4/solstice.seed.nimiq.network/tcp/443/wss, role_override: Dialer, port_use: Reuse } connections=0
+
+  [consensus] connecting @ +23726 ms
+  [peer] left count=0 @ +23726 ms  12D3KooWSo86CSFY…
+2026-09-13T14:52:24.845000000Z INFO  swarm                | Connection closed with peer connection_id=18 peer_id=12D3KooWFYDJCyvFGNS12hnd5RiiGVwyRKXRj4a6M3Z3GYDx2ZNK endpoint=Dialer { address: /dns4/nexus.seed.nimiq.network/tcp/443/wss, role_override: Dialer, port_use: Reuse } connections=0
+
+  [consensus] connecting @ +33671 ms
+  [peer] left count=0 @ +33672 ms  12D3KooWFYDJCyvF…
+2026-09-13T14:52:25.120000000Z INFO  swarm                | Connection closed with peer connection_id=20 peer_id=12D3KooWDZ77bjskagVQXBpb4QkJ28eQxu9Dk3KAgYFCBdb86tPr endpoint=Dialer { address: /dns4/vortex.seed.nimiq.cloud/tcp/443/wss, role_override: Dialer, port_use: Reuse } connections=0
+
+  [consensus] connecting @ +33947 ms
+  [peer] left count=0 @ +33947 ms  12D3KooWDZ77bjsk…
+2026-09-13T14:52:25.462000000Z INFO  swarm                | Connection closed with peer connection_id=17 peer_id=12D3KooWNa9gDAdiDgLSk2ejoWP3t6PDmFyZ6XzgirX8p5MWwv8w endpoint=Dialer { address: /dns4/aurora.seed.nimiq.com/tcp/443/wss, role_override: Dialer, port_use: Reuse } connections=0
+
+  [consensus] connecting @ +34289 ms
+  [peer] left count=0 @ +34289 ms  12D3KooWNa9gDAdi…
+2026-09-13T14:52:34.859000000Z INFO  swarm                | Connection closed with peer connection_id=23 peer_id=12D3KooWBxKzBNCtpffbNMV6dtN9vhbP2c2mzHaYicKCaWPkHChk endpoint=Dialer { address: /dns4/nebula.seed.nimiq.com/tcp/443/wss, role_override: Dialer, port_use: Reuse } connections=0
+
+  [consensus] connecting @ +43686 ms
+  [peer] left count=0 @ +43686 ms  12D3KooWBxKzBNCt…
+2026-09-13T14:52:35.035000000Z INFO  swarm                | Connection closed with peer connection_id=21 peer_id=12D3KooWDZ77bjskagVQXBpb4QkJ28eQxu9Dk3KAgYFCBdb86tPr endpoint=Dialer { address: /dns4/vortex.seed.nimiq.cloud/tcp/443/wss, role_override: Dialer, port_use: Reuse } connections=0
+
+  [consensus] connecting @ +43862 ms
+  [peer] left count=0 @ +43862 ms  12D3KooWDZ77bjsk…

@@ -175,6 +175,11 @@ export function DemoStoreScreen() {
                 ? `readable, block ${health.chain.blockNumber ?? '?'}`
                 : 'could not be read'}
           </Kv>
+          <Kv label="Network">
+            {health === null
+              ? '—'
+              : `${health.chain.network} (id ${health.chain.networkId}), via ${health.chain.mode}`}
+          </Kv>
           <Kv label="Checked">
             {health?.chain.checkedAtMs
               ? timeAgo(health.chain.checkedAtMs, health.serverTimeMs)

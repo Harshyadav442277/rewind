@@ -78,6 +78,19 @@ export function RefundScreen({ orderId }: { orderId: string }) {
       setNote(response.note);
       setPhase('submitted');
     } catch (err) {
+      if (err instanceof ApiError && err.code === 'unavailable') {
+        // The signature was accepted and consumed before anything touched the chain — a 503
+        // here means the refund could not be CONFIRMED inside this request, not that the
+        // request failed. Re-signing would hit "nonce already used" and read as a rejection,
+        // so the buyer is sent to the order screen, which polls until the chain answers.
+        // The light client makes this common: it throws about transactions that exist for the
+        // first half-minute after inclusion.
+        setNote(
+          'Verified and submitted. The chain could not be read just now, so this is not confirmed yet — the order page keeps checking.',
+        );
+        setPhase('submitted');
+        return;
+      }
       // The wrong-signer case is an ApiError, and its message is written to be shown to a
       // buyer. It is rendered verbatim, with the server's detail underneath, because
       // paraphrasing "that wallet did not pay for this order" loses the only useful fact.

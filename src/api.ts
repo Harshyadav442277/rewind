@@ -66,7 +66,12 @@ export interface OrderStatus {
 export interface HealthView {
   chain: {
     reachable: boolean;
+    /** `fake`, `lightclient` (local testnet rehearsal) or `rpc`. */
     mode: string;
+    /** `testnet` or `mainnet`. The client is told; it never guesses. */
+    network: string;
+    /** Prefix every explorer link in a view was built from. Shown, not used to build links. */
+    explorerBase: string;
     networkId: string;
     blockNumber: number | null;
     checkedAtMs: number | null;

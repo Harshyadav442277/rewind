@@ -1,0 +1,209 @@
+=== rewind spike — light-client sync ===
+started at           2026-09-13T14:57:56.900Z
+node                 v24.19.0 on win32/x64
+network              mainnet (MainAlbatross)
+log level            warn
+import @nimiq/core   24 ms
+
+built config         {"networkId":"MainAlbatross","seedNodes":["/dns4/aurora.seed.nimiq.com/tcp/443/wss","/dns4/catalyst.seed.nimiq.network/tcp/443/wss","/dns4/cipher.seed.nimiq-network.com/tcp/443/wss","/dns4/eclipse.seed.nimiq.cloud/tcp/443/wss","/dns4/lumina.seed.nimiq.systems/tcp/443/wss","/dns4/nebula.seed.nimiq.com/tcp/443/wss","/dns4/nexus.seed.nimiq.network/tcp/443/wss","/dns4/polaris.seed.nimiq-network.com/tcp/443/wss","/dns4/photon.seed.nimiq.cloud/tcp/443/wss","/dns4/pulsar.seed.nimiq.systems/tcp/443/wss","/dns4/quasar.seed.nimiq.com/tcp/443/wss","/dns4/solstice.seed.nimiq.network/tcp/443/wss","/dns4/vortex.seed.nimiq.cloud/tcp/443/wss","/dns4/zenith.seed.nimiq.systems/tcp/443/wss"],"logLevel":"warn","onlySecureWsConnections":true,"desiredPeerCount":12,"peerCountMax":50,"peerCountPerIpMax":10,"peerCountPerSubnetMax":10,"networkBufferSize":1024,"syncMode":"pico","numInitialConnections":4}
+Client WASM worker ready
+Client WASM worker loaded
+Sending NIMIQ_INIT message to client worker
+Initializing client WASM worker
+2026-09-13T14:57:57.048000000Z WARN  bls_cache            | idb: Couldn't create database error=indexed db not found
+
+Have client worker remote
+Client.create()      178 ms
+2026-09-13T14:57:57.033000000Z INFO  libp2p_swarm         | local_peer_id=12D3KooWJP6MhofuN8TRqahmarAiqEm8oWnwr6eVpquA8i46H37s
+
+2026-09-13T14:57:57.049000000Z WARN  lib                  | Unable to set event listener for 'message' event: JsValue(TypeError: arg0.addEventListener is not a function
+TypeError: arg0.addEventListener is not a function
+    at C:\Users\hyada\dev\rewind\spikes\light-client\node_modules\@nimiq\core\nodejs\worker-wasm\index.js:1712:18
+    at handleError (C:\Users\hyada\dev\rewind\spikes\light-client\node_modules\@nimiq\core\nodejs\worker-wasm\index.js:2570:18)
+    at __wbg_addEventListener_e8bd29db0d73b9ff (C:\Users\hyada\dev\rewind\spikes\light-client\node_modules\@nimiq\core\nodejs\worker-wasm\index.js:1711:70)
+    at wasm://wasm/01d7532e:wasm-function[864]:0x1c9d09
+    at wasm://wasm/01d7532e:wasm-function[1681]:0x23e534
+    at wasm://wasm/01d7532e:wasm-function[5323]:0x31657a
+    at wasm://wasm/01d7532e:wasm-function[3699]:0x2cad8c
+    at wasm://wasm/01d7532e:wasm-function[5193]:0x310160
+    at wasm_bindgen_a0408da6add7f64d___convert__closures_____invoke___wasm_bindgen_a0408da6add7f64d___JsValue__core_f0fd674eaa06beef___result__Result_____wasm_bindgen_a0408da6add7f64d___JsError___true_ (C:\Users\hyada\dev\rewind\spikes\light-client\node_modules\@nimiq\core\nodejs\worker-wasm\index.js:2404:22)
+    at real (C:\Users\hyada\dev\rewind\spikes\light-client\node_modules\@nimiq\core\nodejs\worker-wasm\index.js:2617:20))
+
+2026-09-13T14:57:57.049000000Z ERROR bls_cache            | couldn't load keys from idb
+
+  [consensus] syncing @ +2069 ms
+  [peer] joined count=1 @ +2070 ms  12D3KooWDZ77bjsk…
+  [consensus] syncing @ +2507 ms
+  [peer] joined count=2 @ +2507 ms  12D3KooWEn8XccNw…
+2026-09-13T14:58:01.471000000Z ERROR bls_cache            | can't store keys in idb num=30
+
+2026-09-13T14:58:01.471000000Z ERROR bls_cache            | can't store keys in idb num=30
+
+  [consensus] syncing @ +5297 ms
+  [peer] joined count=3 @ +5297 ms  12D3KooWBxKzBNCt…
+  [consensus] established @ +11313 ms
+
+CONSENSUS ESTABLISHED
+  after Client.create()      11313 ms
+  after waitFor…() called    11132 ms
+  from process start         11345 ms   <-- cold-start number
+
+head height          61503936
+head hash            84a6b0d5859ab80fb4833f204dc07dbc04a6f0e7eee44c886e40ffde5a96ad97
+networkId            24  (expected 24: MATCH)
+protocolVersion      2
+client version       2.1.0
+address book         24 peers
+  multiaddr protocol tally  {}
+  sample peer               {"peerId":"12D3KooWNa9gDAdiDgLSk2ejoWP3t6PDmFyZ6XzgirX8p5MWwv8w","address":"/dns4/seed-1.pos.nimiq.com/tcp/443/wss","type":"history","services":["full-blocks","history","accounts-proof","accounts-chunk","transaction-index","pre-genesis-transactions"]}
+
+process.memoryUsage() after consensus (main thread; worker RSS is shared in rss):
+  rss                115.6 MB
+  heapTotal          10.4 MB
+  heapUsed           8.2 MB
+  external           5.1 MB
+  arrayBuffers       0.1 MB
+  resourceUsage.maxRSS  166.3 MB (peak, whole process)
+
+=== getTransactionsByAddress("NQ29 FBVT B4GM S27H UBP4 1MTC GNKQ VPBT 099M", limit 5, minPeers 1) ===
+took                 1953 ms
+returned             5 transactions
+
+--- tx[0] ---
+  transactionHash    f7b7235f48f3f7ba0429a13edcae39b3a182cedb61d5740943b15c61ea54dc12
+  state              confirmed
+  executionResult    true
+  blockHeight        61503900
+  confirmations      38
+  timestamp          1789311451053 (2026-09-13T14:57:31.053Z)
+  format             basic
+  sender             NQ81 C01N BASE 0000 0000 0000 0000 0000 0000 (basic)
+  recipient          NQ29 FBVT B4GM S27H UBP4 1MTC GNKQ VPBT 099M (basic)
+  value              9485792 Luna = 94.85792 NIM
+  fee                0 Luna (feePerByte 0)
+  validityStartHeight 61503900
+  network            mainalbatross
+  flags              0
+  size               48 bytes
+  data.type          raw
+  data (hex)         (empty)
+  data (utf8)        ""
+  proof.type         raw
+
+--- tx[1] ---
+  transactionHash    797f0f87567bf9f486b147405829923fcb35d102c716771109125884824a4e71
+  state              confirmed
+  executionResult    true
+  blockHeight        61503840
+  confirmations      98
+  timestamp          1789311391897 (2026-09-13T14:56:31.897Z)
+  format             basic
+  sender             NQ81 C01N BASE 0000 0000 0000 0000 0000 0000 (basic)
+  recipient          NQ29 FBVT B4GM S27H UBP4 1MTC GNKQ VPBT 099M (basic)
+  value              9621120 Luna = 96.21120 NIM
+  fee                0 Luna (feePerByte 0)
+  validityStartHeight 61503840
+  network            mainalbatross
+  flags              0
+  size               48 bytes
+  data.type          raw
+  data (hex)         (empty)
+  data (utf8)        ""
+  proof.type         raw
+
+--- tx[2] ---
+  transactionHash    13d79d2c152664612e8d8d047f22f3d22cadaef2aa26e5c570f78cf73f10b38f
+  state              confirmed
+  executionResult    true
+  blockHeight        61503780
+  confirmations      158
+  timestamp          1789311331897 (2026-09-13T14:55:31.897Z)
+  format             basic
+  sender             NQ81 C01N BASE 0000 0000 0000 0000 0000 0000 (basic)
+  recipient          NQ29 FBVT B4GM S27H UBP4 1MTC GNKQ VPBT 099M (basic)
+  value              9477120 Luna = 94.77120 NIM
+  fee                0 Luna (feePerByte 0)
+  validityStartHeight 61503780
+  network            mainalbatross
+  flags              0
+  size               48 bytes
+  data.type          raw
+  data (hex)         (empty)
+  data (utf8)        ""
+  proof.type         raw
+
+--- tx[3] ---
+  transactionHash    e6c9e646879bb65beee8f8bcf74b93c2b88a0682f4d7aa23eb2bfad6fc7423f1
+  state              confirmed
+  executionResult    true
+  blockHeight        61503720
+  confirmations      218
+  timestamp          1789311272795 (2026-09-13T14:54:32.795Z)
+  format             basic
+  sender             NQ81 C01N BASE 0000 0000 0000 0000 0000 0000 (basic)
+  recipient          NQ29 FBVT B4GM S27H UBP4 1MTC GNKQ VPBT 099M (basic)
+  value              9621152 Luna = 96.21152 NIM
+  fee                0 Luna (feePerByte 0)
+  validityStartHeight 61503720
+  network            mainalbatross
+  flags              0
+  size               48 bytes
+  data.type          raw
+  data (hex)         (empty)
+  data (utf8)        ""
+  proof.type         raw
+
+--- tx[4] ---
+  transactionHash    f965ffc4c55e36b05def8cf4b9cc542d9bcc8c30a63f1e86f74581af9ae15a93
+  state              confirmed
+  executionResult    true
+  blockHeight        61503660
+  confirmations      278
+  timestamp          1789311212795 (2026-09-13T14:53:32.795Z)
+  format             basic
+  sender             NQ81 C01N BASE 0000 0000 0000 0000 0000 0000 (basic)
+  recipient          NQ29 FBVT B4GM S27H UBP4 1MTC GNKQ VPBT 099M (basic)
+  value              9621120 Luna = 96.21120 NIM
+  fee                0 Luna (feePerByte 0)
+  validityStartHeight 61503660
+  network            mainalbatross
+  flags              0
+  size               48 bytes
+  data.type          raw
+  data (hex)         (empty)
+  data (utf8)        ""
+  proof.type         raw
+
+=== getTransaction("f7b7235f48f3f7ba0429a13edcae39b3a182cedb61d5740943b15c61ea54dc12") ===
+took                 436 ms
+  transactionHash    f7b7235f48f3f7ba0429a13edcae39b3a182cedb61d5740943b15c61ea54dc12
+  state              confirmed
+  executionResult    true
+  blockHeight        61503900
+  confirmations      39
+  timestamp          1789311451053 (2026-09-13T14:57:31.053Z)
+  format             basic
+  sender             NQ81 C01N BASE 0000 0000 0000 0000 0000 0000 (basic)
+  recipient          NQ29 FBVT B4GM S27H UBP4 1MTC GNKQ VPBT 099M (basic)
+  value              9485792 Luna = 94.85792 NIM
+  fee                0 Luna (feePerByte 0)
+  validityStartHeight 61503900
+  network            mainalbatross
+  flags              0
+  size               48 bytes
+  data.type          raw
+  data (hex)         (empty)
+  data (utf8)        ""
+  proof.type         raw
+  explorer           https://nimiq.watch/#f7b7235f48f3f7ba0429a13edcae39b3a182cedb61d5740943b15c61ea54dc12
+  hash matches ask   YES
+
+=== getAccount("NQ29 FBVT B4GM S27H UBP4 1MTC GNKQ VPBT 099M") ===
+took                 1580 ms
+  {"type":"basic","balance":177549105160}
+  balance            177549105160 Luna = 1775491.05160 NIM
+
+total wall clock     15320 ms
+
+RESULT {"network":"mainnet","networkName":"MainAlbatross","startedAt":"2026-09-13T14:57:56.900Z","node":"v24.19.0","platform":"win32 x64","importMs":24,"config":{"networkId":"MainAlbatross","seedNodes":["/dns4/aurora.seed.nimiq.com/tcp/443/wss","/dns4/catalyst.seed.nimiq.network/tcp/443/wss","/dns4/cipher.seed.nimiq-network.com/tcp/443/wss","/dns4/eclipse.seed.nimiq.cloud/tcp/443/wss","/dns4/lumina.seed.nimiq.systems/tcp/443/wss","/dns4/nebula.seed.nimiq.com/tcp/443/wss","/dns4/nexus.seed.nimiq.network/tcp/443/wss","/dns4/polaris.seed.nimiq-network.com/tcp/443/wss","/dns4/photon.seed.nimiq.cloud/tcp/443/wss","/dns4/pulsar.seed.nimiq.systems/tcp/443/wss","/dns4/quasar.seed.nimiq.com/tcp/443/wss","/dns4/solstice.seed.nimiq.network/tcp/443/wss","/dns4/vortex.seed.nimiq.cloud/tcp/443/wss","/dns4/zenith.seed.nimiq.systems/tcp/443/wss"],"logLevel":"warn","onlySecureWsConnections":true,"desiredPeerCount":12,"peerCountMax":50,"peerCountPerIpMax":10,"peerCountPerSubnetMax":10,"networkBufferSize":1024,"syncMode":"pico","numInitialConnections":4},"createMs":178,"consensusMsAfterCreate":11313,"consensusMsFromProcessStart":11345,"consensusEvents":[{"state":"syncing","atMsAfterCreate":2069},{"state":"syncing","atMsAfterCreate":2507},{"state":"syncing","atMsAfterCreate":5297},{"state":"established","atMsAfterCreate":11313}],"headHeight":61503936,"headHash":"84a6b0d5859ab80fb4833f204dc07dbc04a6f0e7eee44c886e40ffde5a96ad97","networkId":24,"protocolVersion":2,"clientVersion":"2.1.0","addressBookSize":24,"networkIdMatchesExpected":true,"multiaddrProtocols":{},"samplePeer":{"peerId":"12D3KooWNa9gDAdiDgLSk2ejoWP3t6PDmFyZ6XzgirX8p5MWwv8w","address":"/dns4/seed-1.pos.nimiq.com/tcp/443/wss","type":"history","services":["full-blocks","history","accounts-proof","accounts-chunk","transaction-index","pre-genesis-transactions"]},"memoryAfterConsensus":{"rssBytes":121257984,"heapUsedBytes":8634832,"externalBytes":5391764,"arrayBuffersBytes":146567,"maxRSSKb":170312},"getTransactionsByAddressMs":1953,"getTransactionsByAddressCount":5,"transactions":[{"hash":"f7b7235f48f3f7ba0429a13edcae39b3a182cedb61d5740943b15c61ea54dc12","state":"confirmed","blockHeight":61503900,"value":9485792,"sender":"NQ81 C01N BASE 0000 0000 0000 0000 0000 0000","recipient":"NQ29 FBVT B4GM S27H UBP4 1MTC GNKQ VPBT 099M","dataHex":"","dataUtf8":""},{"hash":"797f0f87567bf9f486b147405829923fcb35d102c716771109125884824a4e71","state":"confirmed","blockHeight":61503840,"value":9621120,"sender":"NQ81 C01N BASE 0000 0000 0000 0000 0000 0000","recipient":"NQ29 FBVT B4GM S27H UBP4 1MTC GNKQ VPBT 099M","dataHex":"","dataUtf8":""},{"hash":"13d79d2c152664612e8d8d047f22f3d22cadaef2aa26e5c570f78cf73f10b38f","state":"confirmed","blockHeight":61503780,"value":9477120,"sender":"NQ81 C01N BASE 0000 0000 0000 0000 0000 0000","recipient":"NQ29 FBVT B4GM S27H UBP4 1MTC GNKQ VPBT 099M","dataHex":"","dataUtf8":""},{"hash":"e6c9e646879bb65beee8f8bcf74b93c2b88a0682f4d7aa23eb2bfad6fc7423f1","state":"confirmed","blockHeight":61503720,"value":9621152,"sender":"NQ81 C01N BASE 0000 0000 0000 0000 0000 0000","recipient":"NQ29 FBVT B4GM S27H UBP4 1MTC GNKQ VPBT 099M","dataHex":"","dataUtf8":""},{"hash":"f965ffc4c55e36b05def8cf4b9cc542d9bcc8c30a63f1e86f74581af9ae15a93","state":"confirmed","blockHeight":61503660,"value":9621120,"sender":"NQ81 C01N BASE 0000 0000 0000 0000 0000 0000","recipient":"NQ29 FBVT B4GM S27H UBP4 1MTC GNKQ VPBT 099M","dataHex":"","dataUtf8":""}],"getTransactionMs":436,"getTransactionHash":"f7b7235f48f3f7ba0429a13edcae39b3a182cedb61d5740943b15c61ea54dc12","getTransactionMatchesRequested":true,"getAccountMs":1580,"account":{"type":"basic","balance":177549105160},"totalMs":15319,"memoryAtEnd":{"rssBytes":118161408}}
+EXIT=0

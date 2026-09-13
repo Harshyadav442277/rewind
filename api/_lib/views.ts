@@ -11,13 +11,28 @@ import { STATE_LABELS } from '../../server/domain/states';
 import type { Order, RefundChallenge, RefundExecution } from '../../server/domain/types';
 
 /**
- * UNVERIFIED: the explorer URL shape has not been checked against nimiq.watch from this
- * repository. If it is wrong the links 404 — nothing else breaks.
+ * Explorer link prefix. `REWIND_EXPLORER_BASE` overrides it; otherwise the network decides,
+ * because a mainnet explorer cannot render a testnet transaction and a link that 404s during
+ * a rehearsal reads as a lost refund. `test.nimiq.watch` was opened on a real testnet hash in
+ * `spikes/light-client` on 2026-09-13; `nimiq.watch` for mainnet is still unverified from this
+ * repository (gap E1).
+ *
+ * The frontend never builds these: every link in a view comes from here, so switching network
+ * switches the links with no client-side knowledge at all. `GET /api/health` reports the
+ * network and this base so the UI can label what it is looking at.
  */
-const EXPLORER_BASE = process.env.REWIND_EXPLORER_BASE ?? 'https://nimiq.watch/#';
+export const MAINNET_EXPLORER_BASE = 'https://nimiq.watch/#';
+export const TESTNET_EXPLORER_BASE = 'https://test.nimiq.watch/#';
+
+export function explorerBase(env: NodeJS.ProcessEnv = process.env): string {
+  return (
+    env.REWIND_EXPLORER_BASE ??
+    (env.REWIND_NETWORK === 'testnet' ? TESTNET_EXPLORER_BASE : MAINNET_EXPLORER_BASE)
+  );
+}
 
 export function explorerUrl(hash: string | null): string | null {
-  return hash ? `${EXPLORER_BASE}${hash}` : null;
+  return hash ? `${explorerBase()}${hash}` : null;
 }
 
 export interface OrderView {

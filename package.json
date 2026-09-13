@@ -14,7 +14,9 @@
     "test": "vitest run",
     "test:db": "vitest run server/db/postgres.integration.test.ts",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "rehearsal:testnet": "node scripts/rehearsal-testnet.mjs",
+    "rehearsal:buyer": "node scripts/rehearsal-buyer.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^0.10.4",

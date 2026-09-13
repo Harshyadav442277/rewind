@@ -1,0 +1,115 @@
+=== rewind spike — light-client send (TESTNET) ===
+started at           2026-09-13T14:55:03.209Z
+sender               NQ17 XYLE 5FBG M0A2 Q7TC Y82U A7M6 AS0D G6VH
+recipient            NQ37 7C3V VMN8 FRPN FXS9 PLAG JMRE 8SC6 KUSQ
+
+Client WASM worker ready
+Client WASM worker loaded
+Sending NIMIQ_INIT message to client worker
+Initializing client WASM worker
+2026-09-13T14:55:03.336000000Z WARN  bls_cache            | idb: Couldn't create database error=indexed db not found
+
+Have client worker remote
+2026-09-13T14:55:03.323000000Z INFO  libp2p_swarm         | local_peer_id=12D3KooWBXir3ojALBay8JV6v4gQm9xTm86SzqGsSifLtqLNFdRm
+
+2026-09-13T14:55:03.336000000Z WARN  lib                  | Unable to set event listener for 'message' event: JsValue(TypeError: arg0.addEventListener is not a function
+TypeError: arg0.addEventListener is not a function
+    at C:\Users\hyada\dev\rewind\spikes\light-client\node_modules\@nimiq\core\nodejs\worker-wasm\index.js:1712:18
+    at handleError (C:\Users\hyada\dev\rewind\spikes\light-client\node_modules\@nimiq\core\nodejs\worker-wasm\index.js:2570:18)
+    at __wbg_addEventListener_e8bd29db0d73b9ff (C:\Users\hyada\dev\rewind\spikes\light-client\node_modules\@nimiq\core\nodejs\worker-wasm\index.js:1711:70)
+    at wasm://wasm/01d7532e:wasm-function[864]:0x1c9d09
+    at wasm://wasm/01d7532e:wasm-function[1681]:0x23e534
+    at wasm://wasm/01d7532e:wasm-function[5323]:0x31657a
+    at wasm://wasm/01d7532e:wasm-function[3699]:0x2cad8c
+    at wasm://wasm/01d7532e:wasm-function[5193]:0x310160
+    at wasm_bindgen_a0408da6add7f64d___convert__closures_____invoke___wasm_bindgen_a0408da6add7f64d___JsValue__core_f0fd674eaa06beef___result__Result_____wasm_bindgen_a0408da6add7f64d___JsError___true_ (C:\Users\hyada\dev\rewind\spikes\light-client\node_modules\@nimiq\core\nodejs\worker-wasm\index.js:2404:22)
+    at real (C:\Users\hyada\dev\rewind\spikes\light-client\node_modules\@nimiq\core\nodejs\worker-wasm\index.js:2617:20))
+
+2026-09-13T14:55:03.337000000Z ERROR bls_cache            | couldn't load keys from idb
+
+2026-09-13T14:55:06.989000000Z ERROR bls_cache            | can't store keys in idb num=10
+
+2026-09-13T14:55:06.989000000Z ERROR bls_cache            | can't store keys in idb num=10
+
+consensus            established in 5962 ms after Client.create()
+networkId            5 (testnet, verified before signing)
+head height          11343840
+sender balance       11000000000 Luna = 110000.00000 NIM
+
+value                100000 Luna = 1.00000 NIM
+fee                  189 Luna (1 Luna/byte, feePerByte 1)
+data (utf8)          "rewind:lc:1789311303205"
+data (hex)           726577696e643a6c633a31373839333131333033323035
+data bytes           23 / 64
+format               extended
+validityStartHeight  11343840 (valid through 11351040)
+serializedSize       189 bytes
+local verify()       PASS (protocol_version 2, networkId 5)
+local tx hash        fb0b3d61ba105a6fa747085b351c3dd55664176559c5c18b7e5dc452f6fb7ae2
+raw hex              01f7e8e2bd70a8142c1f6cfa05c51ea65680d81bb100003b07ded6c87e6f67fb49bd1509572e469869f3580017726577696e643a6c633a3137383933313133303332303500000000000186a000000000000000bd00ad17e005006200801a890fa512801a7f46633af39d4a40fcb1c4283eb95147d7fbfc470290307600e35c58b520b1b202eec711fffa6b381be28fd99409e0abf0b05ddb416e1fadf37bba39680fdb4741d12179927e37178bfc5eb6c1ce22b7d3ea2c6a7df292480b
+explorer             https://test.nimiq.watch/#fb0b3d61ba105a6fa747085b351c3dd55664176559c5c18b7e5dc452f6fb7ae2
+round-trip hash      fb0b3d61ba105a6fa747085b351c3dd55664176559c5c18b7e5dc452f6fb7ae2 (MATCH)
+
+--- client.sendTransaction(tx) — light client broadcast, NO JSON-RPC ---
+2026-09-13T14:55:14.466000000Z ERROR consensus_proxy      | There was an error requesting transaction proof from peer peer=12D3KooWCADdu61FiZDk1JbsuPyt4WMxGmy5GZHAxY3MHUkZVjzN error=Inbound error: No receiver for request
+
+2026-09-13T14:55:14.901000000Z ERROR consensus_proxy      | There was an error requesting transaction proof from peer peer=12D3KooWK4gm6Msrbm4essazLLjTjtMkxiSYT1QBh3ukXX6HgcL6 error=Inbound error: No receiver for request
+
+sendTransaction()    returned in 5776 ms
+returned hash        fb0b3d61ba105a6fa747085b351c3dd55664176559c5c18b7e5dc452f6fb7ae2 (MATCHES local)
+returned state       included
+  transactionHash    fb0b3d61ba105a6fa747085b351c3dd55664176559c5c18b7e5dc452f6fb7ae2
+  state              included
+  executionResult    true
+  blockHeight        11343845
+  confirmations      1
+  timestamp          1789311313611 (2026-09-13T14:55:13.611Z)
+  format             extended
+  sender             NQ17 XYLE 5FBG M0A2 Q7TC Y82U A7M6 AS0D G6VH
+  recipient          NQ37 7C3V VMN8 FRPN FXS9 PLAG JMRE 8SC6 KUSQ
+  value              100000 Luna = 1.00000 NIM
+  fee                189 Luna
+  network            testalbatross
+  size               189 bytes
+  data (hex)         726577696e643a6c633a31373839333131333033323035
+  data (utf8)        "rewind:lc:1789311303205"
+
+--- polling client.getTransaction(hash) until included ---
+  poll  1  +2674 ms  not yet: Transaction not found
+  poll  2  +5273 ms  not yet: Transaction not found
+  poll  3  +7952 ms  not yet: Transaction not found
+  poll  4  +10556 ms  not yet: Transaction not found
+  poll  5  +13225 ms  not yet: Transaction not found
+  poll  6  +15890 ms  not yet: Transaction not found
+  poll  7  +18488 ms  not yet: Transaction not found
+  poll  8  +21092 ms  not yet: Transaction not found
+  poll  9  +23834 ms  not yet: Transaction not found
+  poll 10  +26419 ms  state=confirmed blockHeight=11343845
+
+--- INCLUDED ---
+observed at          2026-09-13T14:55:41.956Z
+time to inclusion    26419 ms after sendTransaction() returned
+  transactionHash    fb0b3d61ba105a6fa747085b351c3dd55664176559c5c18b7e5dc452f6fb7ae2
+  state              confirmed
+  executionResult    true
+  blockHeight        11343845
+  confirmations      30
+  timestamp          1789311313611 (2026-09-13T14:55:13.611Z)
+  format             extended
+  sender             NQ17 XYLE 5FBG M0A2 Q7TC Y82U A7M6 AS0D G6VH
+  recipient          NQ37 7C3V VMN8 FRPN FXS9 PLAG JMRE 8SC6 KUSQ
+  value              100000 Luna = 1.00000 NIM
+  fee                189 Luna
+  network            testalbatross
+  size               189 bytes
+  data (hex)         726577696e643a6c633a31373839333131333033323035
+  data (utf8)        "rewind:lc:1789311303205"
+  data round-trips   YES
+  explorer           https://test.nimiq.watch/#fb0b3d61ba105a6fa747085b351c3dd55664176559c5c18b7e5dc452f6fb7ae2
+
+SEND GATE: PASS
+
+sender balance after 10999899811 Luna = 109998.99811 NIM
+  delta              -100189 Luna (expected -100189)
+total wall clock     39371 ms
+EXIT=0

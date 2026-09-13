@@ -3,11 +3,15 @@
 Application skeleton, money-safety core, and the two spike findings folded in.
 Written 2026-09-13; crypto and chain adapters landed the same day.
 
-**Read this first: no wallet has been funded, no transaction has been signed by a treasury and
-sent, and no database has been provisioned.** What is now real: Ed25519 signature verification,
-Nimiq address validation including check digits, the public-RPC reader (exercised against
-mainnet, read only), and transaction construction and serialisation. What is still fake or
-untested is listed below, and the list is shorter than it was this morning but it is not empty.
+**Read this first: no phone has opened this app, no wallet has ever signed anything for it, and
+no database has been provisioned.** What is now real: Ed25519 signature verification, Nimiq
+address validation including check digits, the public-RPC reader (exercised against mainnet,
+read only), transaction construction and serialisation, and — since the fourth pass on
+2026-09-13 — **two complete pay-and-refund loops on Nimiq's TESTNET**, in which a treasury key
+signed a real transaction, a light client broadcast it, and `REFUNDED` came from a verified
+chain record. That happened locally, on testnet, driven by a script: no phone, no wallet, no
+mainnet, no deployment. What is still fake or untested is listed below and the list is not
+empty.
 
 ---
 
@@ -28,6 +32,15 @@ REWIND_NO_EMBEDDED_PG=1 npm test
                    # forces the Postgres suite to skip, which is what a machine without the
                    # embedded engine sees. It prints why and the rest of the suite still runs.
 ```
+
+```bash
+npm run rehearsal:testnet   # the whole app on Nimiq's TESTNET, locally, with free faucet NIM
+npm run rehearsal:buyer     # a scripted buyer that walks the loop against it (needs the above)
+```
+
+See [Testnet rehearsal](#testnet-rehearsal-the-whole-loop-on-a-phone-with-free-nim) below. It
+is dev-only: production is unchanged (public RPC, mainnet), and `REWIND_CHAIN=lightclient` is
+refused when `VERCEL_ENV` or `NODE_ENV` is `production`.
 
 `npm run test:db` needs no Docker, no service and no `DATABASE_URL`: the engine is
 `@electric-sql/pglite`, a devDependency, which is Postgres compiled to WebAssembly and run
@@ -70,7 +83,10 @@ to answer when `REWIND_CHAIN=rpc` or `VERCEL_ENV=production`.
 | `server/crypto/nimiq-signature-verifier.ts` | **Real** Ed25519 verification of a Nimiq signed message |
 | `server/crypto/nimiq-address.ts` | **Real** address validation via `Address.fromString`, canonical form |
 | `server/chain/rpc-chain-reader.ts` | **Real** public-RPC reader: retries, timeouts, not-found-is-pending |
-| `server/chain/treasury-broadcaster.ts` | **Real** treasury signer and `pushTransaction` broadcaster |
+| `server/chain/treasury-broadcaster.ts` | **Real** treasury signer and `pushTransaction` broadcaster. Also the shared `normalizeSerializedTx` / `verifySerializedTx` gate both broadcasters run |
+| `server/chain/light-client-chain-reader.ts` | **Real** `@nimiq/core` light-client reader, dev-only. One client per process, testnet seeds set explicitly, every throw is `ChainUnavailableError` |
+| `server/chain/light-client-broadcaster.ts` | **Real** broadcast over `client.sendTransaction`, dev-only. Re-verifies the bytes against the configured network first |
+| `scripts/` | The two rehearsal scripts. Scripts, not tests: they open sockets and spend testnet NIM |
 | `api/` | Vercel serverless handlers, thin, wired in `api/_lib/deps.ts` |
 | `api/_lib/merchant-auth.ts` | Joins the merchant challenge to the request, the verifier and the stored nonce |
 | `spikes/` | The two spikes. Read only; nothing in `server/` imports from them |
@@ -124,6 +140,101 @@ undocumented symbol) is **not** in the application. It stays in spike scripts.
   mempool.
 
 ---
+
+## Testnet rehearsal: the whole loop on a phone, with free NIM
+
+Added 2026-09-13, fourth pass. **Local development only.** Production is exactly as it was:
+`REWIND_CHAIN=rpc`, mainnet, the public node. This mode exists so the complete Rewind loop —
+pay, prove the wallet, refund, settle — can be walked on a real Android phone in Nimiq Pay's
+testnet mode before one Luna of mainnet NIM exists.
+
+### How it works
+
+`REWIND_CHAIN=lightclient` swaps the RPC reader and the RPC broadcaster for an in-process
+`@nimiq/core` light client. There is no JSON-RPC anywhere in the path: the client dials the
+testnet seed nodes over WebSocket and verifies what it reads against the chain proof.
+
+| File | What it is |
+|---|---|
+| `server/chain/light-client-chain-reader.ts` | `ChainReader` over the light client. Network and seed selection, the lazy per-process client, the field mapping, and the throw semantics |
+| `server/chain/light-client-broadcaster.ts` | `TxBroadcaster` over `client.sendTransaction`. The transaction is still built, signed, fee-converged and `verify()`-gated by `TreasuryTxBuilder`; this file re-verifies the stored bytes against the configured network and sends them |
+| `server/chain/light-client-chain-reader.test.ts` | 22 offline tests: the throw mapping, the seed selection, the field mapping. No socket, no WASM |
+| `scripts/rehearsal-testnet.mjs` | `npm run rehearsal:testnet`. Key, faucet, balance, then `vite` with the right environment |
+| `scripts/rehearsal-buyer.mjs` | `npm run rehearsal:buyer`. A **script**, not a test: it spends testnet NIM and needs the server running |
+| `dev-server/dev-api-plugin.ts` | Loads root `.env.local` into `process.env` (vite does not), warms the client at start-up, prints the LAN URL for the phone |
+
+Three decisions in that adapter are worth knowing before trusting it:
+
+1. **A throw is never "absent".** `client.getTransaction(hash)` throws `"Transaction not
+   found"` for transactions that exist and are already included — nine consecutive times over
+   23.8 s in the spike, for a transaction the same client had just broadcast. So every throw
+   maps to `ChainUnavailableError` and absence is decided only by the caller's validity-window
+   timeout. The visible cost is real: `POST /api/orders/:id/refund` answers **503** for the
+   first half-minute after it broadcasts, and the order settles on a later poll. The refund
+   screen now treats a 503 as submitted-but-unconfirmed rather than as a rejection, because
+   the signature is consumed before anything reads the chain and re-signing would hit "nonce
+   already used".
+2. **Payments are found by scanning**, not by hash. `getTransactionsByAddress` works and is
+   retried three times (the spike saw 1 call in 27 fail outright); a failure is unavailability,
+   never an empty list, because an empty list reads as "this address was never paid".
+3. **A half-populated record reads as pending.** `executionResult` is `undefined` until
+   inclusion, and the domain treats `executionResult !== true` on a transaction that has a
+   block number as `execution_failed`, which is FATAL and reverts the order. So a record with
+   a height but no execution result is reported with `blockNumber: null` — the non-fatal
+   "keep polling" answer.
+
+### Owner steps, on the phone
+
+**The Nimiq Pay steps are from the docs and are UNVERIFIED — no phone was touched here.**
+
+1. Laptop and phone on the same wifi. Run `npm run rehearsal:testnet` and read the URL it
+   prints (`http://<laptop-lan-ip>:5173`, or whatever port vite actually bound — it walks
+   forward if 5173 is busy, and the plugin prints the real one).
+2. Open Nimiq Pay. **Long-press the settings icon for about 10 seconds** to reveal the hidden
+   developer menu.
+3. Switch the network to **testnet**.
+4. Use **"Get free NIM"**. The docs say it dispenses **110,000 testnet NIM** (the faucet's own
+   `/info` agrees: `dispenseAmount 110000`).
+5. **Mini Apps → Custom URL**, and type the LAN URL from step 1.
+6. Check anything the phone does at <https://test.nimiq.watch>.
+
+Unknown, and it is the first thing the phone run will settle: **whether Nimiq Pay accepts a
+plain `http://` custom URL at all**, and whether a mini app is served the testnet network id in
+that mode. If http is refused, the fallback is a TLS tunnel to the dev server, which nothing
+here sets up.
+
+### What the rehearsal proved on this machine
+
+Two full end-to-end runs on **Nimiq PoS testnet**, 2026-09-13, driven by
+`scripts/rehearsal-buyer.mjs` against `npm run rehearsal:testnet`. Both hashes below are
+confirmed by **test-api.nimiq.watch**, which is a third party and not this code. No phone and
+no wallet were involved: the buyer is a script holding a faucet-funded testnet burner.
+
+Run 2 (final code), 45.4 s end to end:
+
+| Step | Observed |
+|---|---|
+| `GET /api/health` | `mode lightclient`, `network testnet`, `networkId 5`, block `11345630`, treasury `NQ17 XYLE…G6VH` holding `109998.99623 NIM`, `demoPaused false`. **This is the first live `getAccountByAddress` this repository has ever done** — against the light client, not the RPC |
+| order | `9badf825847a2ddc`, 0.01 NIM, reference `RW1:P:9badf825847a2ddc` |
+| buyer light client | consensus in **5126 ms**, networkId 5, head `11345637` |
+| payment | `d6aafba47d2d73b6c6cd63aac540e6e0a415cae19075787c144f54ad8132b9b8`, fee 188 Luna, 188 bytes, **included in block 11345641**, `sendTransaction` returned in 5240 ms already carrying `state=included` |
+| `POST /api/orders/:id/payment` with an **empty body** | `202`, `status paid` — the server found the payment by scanning the merchant address for the reference, with no hash hint at all |
+| challenge | 7 lines, nonce `ae7e07bd41633b45610cfeda800667f0`, signed with the buyer key under the real preimage (`sha256("\x16Nimiq Signed Message:\n" + byteLen + text)`, Ed25519) |
+| `POST /api/orders/:id/refund` | **503** `light client getTransaction(e14aa961…)` — the documented semantics, after the refund had already been broadcast |
+| polling | 6 × 503, then `REFUNDED` |
+| refund | `e14aa9617109b3ef1887201bc8d6896b4bde43a37cd21086be77501b082056e3`, **block 11345650**, treasury → buyer, 1000 Luna, data `RW1:R:9badf825847a2ddc` |
+| buyer balance | `10999999812` → `10999999624` Luna. −188, which is exactly the payment fee: the 1000 Luna went out and came back |
+
+Run 1 was the same walk with a cold faucet tap: payment
+`2788a1d156b42b1ce9d0d05a0b7c00ff0715dd512b87059411214ce44ee8b4a6` (block 11345461), refund
+`4afd4b276e50a89bfa04844a83d18efd0effce348d3e50efdf1bd05c97f0c0ed` (block 11345472), 5 × 503
+while settling. The dev server's own light client reached consensus in **9880 ms** and served
+every read for both runs.
+
+What that does and does not prove is in the tables below. In one line: **the server's
+transaction path is real now** — a treasury key signed, a real transaction was broadcast and
+included, and `REFUNDED` came from a verified chain record — but it happened on testnet, from
+a script, with no wallet and no phone anywhere in it.
 
 ## What changed on 2026-09-13, second pass
 
@@ -192,7 +303,9 @@ was checked against a deliberately broken build (see Evidence).
 | `NimiqSignatureVerifier` | `nimiq-signature-verifier.test.ts`, 29 offline tests: generated keypairs, both prefixes, preimage byte-length, and negatives for tampered text, wrong key, raw-utf8 and unhashed signatures, flipped bits and malformed hex | That Nimiq Pay's `sign()` produces either preimage. No device signature has ever been checked |
 | Address validation (`hasValidCheckDigits`, `parseAddress`) | `nimiq-address.test.ts`, 20 tests: two known-valid mainnet addresses, a transposed-character corruption, all 99 wrong check digits, 200 generated addresses, agreement with `Address.fromString` | Nothing outstanding. Gap A1 is closed |
 | `RpcChainReader` | `rpc-chain-reader.test.ts`, 22 offline tests against an injected fetch, plus 4 live mainnet reads under `RUN_RPC_TESTS=1` | Behaviour under sustained load or at the rate limit. One endpoint, one moment |
-| `TreasuryTxBuilder` and `RpcTxBroadcaster` | `treasury-broadcaster.test.ts`, 27 offline tests over both: build, sign, `verify()`, serialisation round trip, fee convergence on the signed size, determinism, every refusal, and the broadcaster against a fake RPC | That a node accepts the transaction. **`pushTransaction` has never been called from this repository and nothing has been broadcast** |
+| `TreasuryTxBuilder` | `treasury-broadcaster.test.ts`, 27 offline tests: build, sign, `verify()`, serialisation round trip, fee convergence on the signed size, determinism and every refusal — **plus two real testnet refunds it built and signed, included in blocks 11345472 and 11345650** | Mainnet. Every transaction it has ever signed was networkId 5, worth 0.01 NIM, and sent by a script |
+| `RpcTxBroadcaster` | The same 27 tests cover it against a fake RPC | That a node accepts the transaction. **`pushTransaction` has still never been called from this repository**; the two real broadcasts went through the light client, not this class |
+| `LightClientChainReader` and `LightClientTxBroadcaster` | `light-client-chain-reader.test.ts`, 22 offline tests (throw mapping, seed selection, field mapping), plus two full testnet loops on 2026-09-13 in which it read the head, read the treasury balance, found a payment by reference scan, broadcast a refund and settled it from a verified record. Both transactions confirmed by test-api.nimiq.watch | Mainnet, where cold consensus was 8.4-32.1 s in the spike. Any deployment: it is refused in production. Behaviour over hours, reorgs, or with the phone as the payer |
 | Merchant authentication | `api/_lib/merchant-auth.test.ts`, 33 offline tests, run against both the fake and the real verifier | No merchant has ever signed anything in a wallet |
 | `PostgresRepository` and `schema.sql` | `server/db/postgres.integration.test.ts`, 48 tests against **PostgreSQL 18.3 (PGlite 0.5.8)**, WASM, in process: the schema applies and re-applies, every statement runs, eight parallel reservations give one winner, eight parallel preparers give one winner, a replayed challenge nonce and a replayed merchant nonce are each consumed exactly once, a restart adopts the stored bytes, the caps hold, BIGINT and TIMESTAMPTZ round-trip, and every unique violation arrives as `UniqueViolationError` under the constraint name the application catches | The Neon driver itself (`neonExecutor`), Neon's own type parsing and error shape, multi-session lock contention, connection failure and pooling, and Vercel bundling |
 
@@ -204,7 +317,7 @@ was checked against a deliberately broken build (see Evidence).
 |---|---|---|
 | `FakeSignatureVerifier` | The real verifier above | Anything about signatures. It accepts a digest a real verifier would reject. Used only when `REWIND_VERIFIER` resolves to `fake` |
 | `FakeRefundTxBuilder` / `FakeTxBroadcaster` | The real builder and broadcaster above | Serialisation, fees, validity windows, hashing, mempool behaviour |
-| `FakeChain` / `FakeChainReader` | The Nimiq chain | Reorgs, timing, rate limits, real field values |
+| `FakeChain` / `FakeChainReader` | The Nimiq chain | Reorgs, timing, rate limits, real field values. Still the default for `npm run dev`; the testnet rehearsal replaces it with a real chain |
 | `FakeWallet` | `window.nimiq` inside Nimiq Pay | The native confirmation dialog, real cancellation, address format from a real wallet. It has outcome parity with the real adapter and a `cancelNext()` hook, which is how the cancelled screens are exercised without a phone |
 | `InMemoryRepository` | Postgres | Transaction isolation, real constraint behaviour, connection failures. Since 2026-09-13 the Postgres path has its own tests, so this is no longer the only evidence for the money rules |
 | `FakeChain.balanceOf` | `getAccountByAddress` | Nothing about the real RPC method. It answers `defaultBalanceLuna` for any address nobody set |
@@ -225,12 +338,16 @@ was checked against a deliberately broken build (see Evidence).
   serialisation failures and long transactions are untested.
 - **Vercel bundling of the database path.** `@neondatabase/serverless` has never been bundled
   into a deployed function.
-- **`getAccountByAddress`** — the only RPC method in this codebase whose live response shape
-  has NOT been observed. `RpcChainReader.getAccountByAddress` validates `balance` defensively
-  and raises `ChainUnavailableError` rather than reporting a fabricated zero, because a zero
-  would pause the demo for the wrong reason.
-- **Any broadcast.** `RpcTxBroadcaster.broadcast` has never been called against a real node,
-  and no treasury key has ever been configured on this machine outside a spike folder.
+- **`getAccountByAddress` over JSON-RPC** — still the only RPC method in this codebase whose
+  live response shape has NOT been observed. The LIGHT CLIENT's `getAccount` has now been read
+  live (the health endpoint reported the treasury's real testnet balance, 109998.99623 NIM),
+  which says nothing about the RPC method's envelope. `RpcChainReader.getAccountByAddress`
+  validates `balance` defensively and raises `ChainUnavailableError` rather than reporting a
+  fabricated zero, because a zero would pause the demo for the wrong reason.
+- **Any MAINNET broadcast, and any broadcast over JSON-RPC.** `RpcTxBroadcaster.broadcast`
+  has still never been called against a real node. Two real refunds have now been broadcast —
+  on testnet, through the light client, from a faucet-funded burner whose key is in a
+  gitignored root `.env.local`. No mainnet key exists on this machine.
 - **The real wallet path** — `NimiqPayWallet` has never run inside Nimiq Pay, and no signature
   produced by a real wallet has been fed to `NimiqSignatureVerifier`.
 - **The whole app on a phone** — never opened on a device.
@@ -264,7 +381,10 @@ was checked against a deliberately broken build (see Evidence).
 | R1 | `REFUND_FAILED` is terminal, with no automatic retry. | Deliberate: no path may re-enter `REFUND_APPROVED`. A failed refund needs a person, and there is no operator tooling for that yet. |
 | R2 | A treasury ledger row is written before the broadcast and is never removed if the refund later fails. | Caps count NIM committed, not NIM confirmed. Conservative on purpose; it under-reports available allowance after a failure. |
 | R3 | `ChainUnavailableError` returns 503 and the order does not move. | Correct, but there is no operator alert and no backoff visible to the buyer beyond `retry-after: 5`. A long node outage looks like a stuck order. |
-| E1 | The explorer URL shape (`https://nimiq.watch/#<hash>`) has not been checked from this repository. | The spike opened one in a browser and it rendered. Links may still 404 for an unincluded transaction. Nothing else breaks. |
+| E1 | The explorer URL shape has not been checked from this repository. | The spike opened one in a browser and it rendered. The testnet base (`https://test.nimiq.watch/#`) is now what the rehearsal emits, and the two rehearsal hashes were confirmed through `test-api.nimiq.watch`, which is the API and not the page. Links may still 404 for an unincluded transaction. Nothing else breaks. |
+| L1 | The light client answers 503 about transactions that exist, for roughly the first half-minute after inclusion. | Deliberate and unavoidable: its `getTransaction` throws "Transaction not found" for included transactions, so a throw can never be read as absence. `POST /refund` therefore returns 503 after a successful broadcast and the order settles on a later poll; the refund screen shows that as submitted-but-unconfirmed. Observed 5 and 6 times in the two rehearsal runs. |
+| L2 | Whether Nimiq Pay accepts a plain `http://` custom URL, and whether a mini app sees the testnet network id in developer mode, is unknown. | Everything in the rehearsal below the phone works; the phone step itself is unproved. If http is refused the rehearsal needs a TLS tunnel, which nothing here sets up. |
+| L3 | The rehearsal uses `InMemoryRepository`. | Orders die with the dev server. Fine for a walkthrough, and it keeps the rehearsal independent of Neon; it means a mid-demo restart loses the order rather than recovering it, which is exactly the path `resumeUnsettledRefunds` exists for and which is therefore still unexercised against a real chain. |
 | P1 | `InMemoryRepository` is per-instance and is refused when `VERCEL_ENV=production`. | Without that guard a deployment would look like it worked and lose every order. |
 
 ---
@@ -277,13 +397,14 @@ Names only. No values are in this repository and none should be.
 |---|---|
 | `REWIND_REPO` | `memory` (default, dev only) or `postgres` |
 | `DATABASE_URL` | Neon connection string, required when `REWIND_REPO=postgres`. Read only by `api/_lib/deps.ts`, which passes it to `new PostgresRepository(url)`; that constructor builds the Neon HTTP executor. **The tests never read it** — they hand the repository an embedded-Postgres executor instead, so no database is needed to run them and no connection string belongs in this repository |
-| `REWIND_CHAIN` | `fake` (default, dev only) or `rpc` |
+| `REWIND_CHAIN` | `fake` (default, dev only), `lightclient` (LOCAL testnet rehearsal, refused in production) or `rpc` |
+| `REWIND_NETWORK` | `testnet` or `mainnet` (default, and what any unrecognised value means). Decides the light client's seed nodes, the default `networkId` the domain checks, the networkId the treasury signs with, and the explorer prefix. Reported by `GET /api/health` so the frontend never guesses |
 | `NIMIQ_RPC_URL` | Public or private Nimiq RPC endpoint, required when `REWIND_CHAIN=rpc` |
 | `NIMIQ_RPC_AUTHORIZATION` | Optional credential for a private node. Never logged |
 | `REWIND_VERIFIER` | `real` or `fake`. Unset means real in production or with `REWIND_CHAIN=rpc`, fake otherwise. `fake` is refused in production |
 | `REWIND_MERCHANT_AUTH` | `required` or `off`. Unset means required in production or with `REWIND_CHAIN=rpc`. `off` is refused in either |
-| `REWIND_TREASURY_PRIVATE_KEY` | **Secret.** 64 hex characters, the Demo Store treasury signing key. Read only by `TreasuryTxBuilder.fromEnv`, never logged, never returned, never written to disk. Without it the Demo Store cannot send a refund and orders stop at `REFUND_APPROVED` |
-| `REWIND_NETWORK_ID` | Override for the expected `networkId`. **The default is already `24`, Albatross mainnet**; set this only for a testnet or a local node |
+| `REWIND_TREASURY_PRIVATE_KEY` | **Secret.** 64 hex characters, the Demo Store treasury signing key. Read only by `TreasuryTxBuilder.fromEnv`, never logged, never returned. For the rehearsal it lives in a gitignored root `.env.local` and is a TESTNET burner funded by a faucet; `npm run rehearsal:testnet` writes it there and never prints it. Without it the Demo Store cannot send a refund and orders stop at `REFUND_APPROVED` |
+| `REWIND_NETWORK_ID` | Override for the expected `networkId`. **The default follows `REWIND_NETWORK`: 24 on mainnet, 5 on testnet**, so the rehearsal needs no override. `TreasuryTxBuilder.fromEnv` derives its signing networkId from the same two variables, so the checked id and the signed id cannot drift apart |
 | `REWIND_MIN_CONFIRMATIONS` | Confirmations before a transfer counts |
 | `REWIND_REFUND_FEE_LUNA` | Absolute fee for a treasury refund. `0` (the default) means 1 Luna per signed byte |
 | `REWIND_TREASURY_ADDRESS` | Demo Store address, which is also the capped treasury. Must be the address of `REWIND_TREASURY_PRIVATE_KEY` |
@@ -292,7 +413,7 @@ Names only. No values are in this repository and none should be.
 | `REWIND_CAP_TOTAL_LUNA` | Override for the lifetime treasury ceiling |
 | `REWIND_TREASURY_FLOOR_LUNA` | Treasury balance below which the Demo Store stops taking payments. Default 50000 Luna (0.5 NIM). Read by `GET /api/health`, which turns it into `demoPaused` |
 | `REWIND_DEMO_AUTO_APPROVE` | `off` turns off the Demo Store's automatic approval of its own refunds, making it a two-person flow. Anything else, including unset, leaves it on — which is what the store screen's disclosure describes |
-| `REWIND_EXPLORER_BASE` | Explorer link prefix. Default `https://nimiq.watch/#` |
+| `REWIND_EXPLORER_BASE` | Explorer link prefix. Default follows the network: `https://nimiq.watch/#` on mainnet, `https://test.nimiq.watch/#` on testnet. Every link in a view is built server-side from this, so the frontend needs no network knowledge to link correctly |
 | `RUN_RPC_TESTS` | Test-only. `1` enables the live mainnet integration tests |
 | `REWIND_NO_EMBEDDED_PG` | Test-only. `1` forces the Postgres suite to skip, which is what a machine without the embedded engine sees |
 
@@ -406,9 +527,58 @@ The concurrency and recovery tests were checked against a deliberately broken bu
 they fail when the protection is removed: replacing `prepareRefundExecution` with a plain
 update makes "two concurrent sends produce one transaction" report 2 sends instead of 1.
 
+### Fourth pass, 2026-09-13: the testnet rehearsal, run on this machine
+
+Commands and their real output. Node v24.19.0, npm 11, Windows 11.
+
+- `npm run typecheck` → clean
+- `npm test` → **337 passed, 4 skipped (17 files)**, offline. The 22 new ones are
+  `server/chain/light-client-chain-reader.test.ts`; one more is the refund screen's 503 case
+- `npm run build` → typecheck clean, then `41 modules transformed`, `built in 934ms`, main
+  chunk `176.86 kB` (gzip 55.64 kB). It grew 0.31 kB against 176.55 kB — the network row on
+  the store screen and the 503 branch. `@nimiq/core` is still server-side only and still not
+  in the browser bundle
+- `node scripts/rehearsal-testnet.mjs --no-server` →
+  `treasury address NQ17 XYLE 5FBG M0A2 Q7TC Y82U A7M6 AS0D G6VH`,
+  `balance 10999899811 Luna = 109998.99811 NIM (test-api.nimiq.watch)`, key reused from
+  `spikes/light-client/.env.local` and copied into a new root `.env.local` (the spike file was
+  not written to). `git status` shows neither file: `.gitignore`'s `.env.*` covers both
+- `npm run rehearsal:testnet` → dev server up; the plugin printed the LAN URLs at the port vite
+  actually bound, then `[lightclient] booting testnet (TestAlbatross)` and
+  **`[lightclient] consensus on testnet in 9880 ms, networkId 5`**. Note 5173 was already in
+  use on this machine, vite took 5174, and the printed URL followed it — that fix exists
+  because a URL typed into a phone from the wrong port is a silent dead end
+- `GET /api/health` against it →
+  `{"chain":{"reachable":true,"mode":"lightclient","network":"testnet","explorerBase":"https://test.nimiq.watch/#","networkId":"5","blockNumber":11345319,...},"treasury":{"address":"NQ17 XYLE …","balanceLuna":10999899811,"balanceLabel":"109998.99811 NIM"},"demoPaused":false,"repo":"memory"}`
+- `node scripts/rehearsal-buyer.mjs` → **REHEARSAL: PASS**, twice. Run 1 (with a cold faucet
+  tap for the buyer) took 169.9 s of which 120 s was waiting for the faucet; run 2 took 45.4 s.
+  Both transactions of both runs were then fetched from `test-api.nimiq.watch`, a third party:
+
+  | | run 1 | run 2 |
+  |---|---|---|
+  | order | `dcc3a089eb8d6c3b` | `9badf825847a2ddc` |
+  | payment tx | `2788a1d156b42b1ce9d0d05a0b7c00ff0715dd512b87059411214ce44ee8b4a6` | `d6aafba47d2d73b6c6cd63aac540e6e0a415cae19075787c144f54ad8132b9b8` |
+  | payment block | 11345461 | 11345641 |
+  | refund tx | `4afd4b276e50a89bfa04844a83d18efd0effce348d3e50efdf1bd05c97f0c0ed` | `e14aa9617109b3ef1887201bc8d6896b4bde43a37cd21086be77501b082056e3` |
+  | refund block | 11345472 | 11345650 |
+  | buyer light client, cold consensus | 8988 ms | 5126 ms |
+  | `sendTransaction` returned in | 5512 ms, already `state=included` | 5240 ms, already `state=included` |
+  | 503s while settling | 5 | 6 |
+
+  The third party's own answer for run 2's payment, verbatim:
+  `{"block_height":11345641,"hash":"d6aafba4…b9b8","sender_address":"NQ67 P1JF APL7 QJLJ XVUH JGSV FLK2 M7V8 CUK0","value":1000,"fee":188,"executed":true,"receiver_address":"NQ17 XYLE …","data":"UlcxOlA6OWJhZGY4MjU4NDdhMmRkYw==","confirmations":36}`
+  — that base64 is `RW1:P:9badf825847a2ddc`, and the refund's is `RW1:R:9badf825847a2ddc`.
+  The buyer's balance went `10999999812` → `10999999624` Luna across run 2: −188, the payment
+  fee, because the 1000 Luna came back.
+
+- Deliberately NOT hinted: `POST /api/orders/:id/payment` was called with an **empty body** in
+  both runs, so the server had to find the payment by scanning the merchant address for
+  `RW1:P:<orderId>`. It answered `202 status=paid` within ~3 s of the transaction landing.
+
 ### Still unverified, after this pass
 
-Nothing above involved a real wallet, a real device, a database or a broadcast. Specifically:
+Nothing above involved a real wallet, a real device, a database, mainnet, or a deployment.
+Specifically:
 
 - **A real wallet.** `NimiqPayWallet` has never run inside Nimiq Pay. Its result mapping is
   tested against a stub built from the SDK's own type declarations, which are a declaration,
@@ -423,8 +593,12 @@ Nothing above involved a real wallet, a real device, a database or a broadcast. 
   nothing.
 - **Vercel.** Never deployed. `api/health.ts` is a new function file that has never been
   bundled, and `vercel.json` is still unverified.
-- **Any broadcast.** `pushTransaction` has never been called from this repository, and no
-  treasury key is configured on this machine outside a spike folder.
+- **Any mainnet broadcast.** `pushTransaction` — the JSON-RPC path the deployment would use —
+  has still never been called from this repository. The only transactions this repository has
+  ever sent are the four testnet ones above, through the light client, from a faucet-funded
+  burner. No mainnet key exists on this machine.
 - **`getAccountByAddress`.** The one RPC method here whose live response has never been seen.
 
-Not evidence of anything on a phone, on Neon, or of any transaction this repository sent.
+Not evidence of anything on a phone, on Neon, on mainnet, or on Vercel. The testnet loop is
+evidence of exactly what it says: this code, on this machine, moved 0.01 testnet NIM out and
+back, twice, and refused to call it refunded until the chain said so.
