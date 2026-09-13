@@ -1,0 +1,289 @@
+/**
+ * The only place the app talks to a wallet.
+ *
+ * Inside Nimiq Pay the provider is injected as `window.nimiq`; the type of that global comes
+ * from `@nimiq/mini-app-sdk` itself, so it is not re-declared here. Outside Nimiq Pay — a
+ * laptop browser during development — there is no provider, so `FakeWallet` stands in and
+ * drives the server's development fake chain. `isFakeWallet()` is what the UI uses to say so
+ * out loud rather than pretending.
+ *
+ * Facts read directly from the installed SDK typings (`@nimiq/mini-app-sdk@0.1.0`,
+ * `dist/provider.d.ts`), which differ from the design notes in two ways worth knowing:
+ *
+ *   1. Every wallet call resolves to `Result | ErrorResponse`. A rejected native dialog can
+ *      therefore come back as a RESOLVED promise carrying `{ error: { type, message } }`,
+ *      not as a throw. Both are collapsed into one outcome here.
+ *
+ *   2. `sendBasicTransactionWithData` is documented as "@returns The serialized transaction",
+ *      while nimiq.dev describes a hash. Both are handled: 64 hex characters are taken as a
+ *      hash hint, anything else is reported as `serialized` and the client sends NO hint, so
+ *      the server finds the payment by scanning the merchant address for `RW1:P:<orderId>`.
+ *
+ *      The hash is deliberately NOT derived client side from a serialised transaction. Doing
+ *      it correctly means Blake2b over the Nimiq transaction's content, which means pulling
+ *      `@nimiq/core`'s WASM into the phone bundle for a hint the server does not need. The
+ *      scan already works and costs one RPC read.
+ *
+ * Why outcomes rather than exceptions: cancelling is the single most likely thing a user does
+ * at a wallet dialog, and it is not an error. It gets its own status so no screen has to
+ * pattern-match an error message to find out whether money moved. `error` means the wallet
+ * refused or broke; `cancelled` means the user said no and NOTHING was sent.
+ *
+ * UNVERIFIED: none of the real-provider path has been run inside Nimiq Pay from this
+ * repository. The result mapping below is tested against a stubbed `window.nimiq`
+ * (`wallet.test.ts`), which proves the mapping and nothing about the wallet.
+ */
+
+import type { ErrorResponse, SignatureResult } from '@nimiq/mini-app-sdk';
+
+export interface SendPaymentRequest {
+  recipient: string;
+  /** Luna. */
+  value: number;
+  /** Required by the provider; this app always sends the `RW1:P:<orderId>` reference. */
+  data: string;
+  fee?: number;
+  validityStartHeight?: number;
+}
+
+/** What the provider handed back for a send, and what it turned out to be. */
+export interface SentPayment {
+  /** Exactly what the provider returned, untouched. */
+  raw: string;
+  /** Whether that string is usable as a pointer to the transaction. */
+  kind: 'hash' | 'serialized';
+  /** Lowercase 64-hex when `kind` is `hash`, otherwise null. A hint, never evidence. */
+  txHash: string | null;
+}
+
+/**
+ * Three outcomes, and the UI has to render all three. `cancelled` is not an error and never
+ * means a payment may have gone out: the wallet refused before signing.
+ */
+export type WalletOutcome<T> =
+  | { status: 'ok'; value: T }
+  | { status: 'cancelled'; message: string }
+  | { status: 'error'; message: string; detail?: string };
+
+export interface WalletAdapter {
+  /** Which account(s) the wallet will pay from, so the UI can say "you are paying from NQ…". */
+  listAccounts(): Promise<WalletOutcome<string[]>>;
+  sign(message: string): Promise<WalletOutcome<SignatureResult>>;
+  sendPayment(request: SendPaymentRequest): Promise<WalletOutcome<SentPayment>>;
+}
+
+const TX_HASH_RE = /^[0-9a-f]{64}$/;
+
+/** True when the provider gave us something that is actually a transaction hash. */
+export function looksLikeTxHash(value: string): boolean {
+  return TX_HASH_RE.test(value.trim().toLowerCase());
+}
+
+export function classifySendResult(raw: string): SentPayment {
+  const trimmed = raw.trim();
+  return looksLikeTxHash(trimmed)
+    ? { raw, kind: 'hash', txHash: trimmed.toLowerCase() }
+    : { raw, kind: 'serialized', txHash: null };
+}
+
+/**
+ * Words a wallet uses when the person said no. Matched on both the `type` and the `message`
+ * of an ErrorResponse and on a thrown error's message, because which of those Nimiq Pay
+ * actually produces has not been observed.
+ */
+const CANCEL_RE = /cancel|reject|denied|declin|abort|dismiss|user closed/i;
+
+export function isErrorResponse(value: unknown): value is ErrorResponse {
+  if (typeof value !== 'object' || value === null || !('error' in value)) return false;
+  const error = (value as { error: unknown }).error;
+  return typeof error === 'object' && error !== null;
+}
+
+function errorFields(value: ErrorResponse): { type: string; message: string } {
+  const error = value.error as { type?: unknown; message?: unknown };
+  return {
+    type: typeof error.type === 'string' ? error.type : '',
+    message: typeof error.message === 'string' ? error.message : '',
+  };
+}
+
+/** An ErrorResponse the provider RESOLVED with. */
+export function outcomeFromErrorResponse<T>(value: ErrorResponse): WalletOutcome<T> {
+  const { type, message } = errorFields(value);
+  if (CANCEL_RE.test(`${type} ${message}`)) {
+    return { status: 'cancelled', message: message || 'You cancelled the wallet dialog.' };
+  }
+  return {
+    status: 'error',
+    message: message || type || 'The wallet refused that request.',
+    ...(type ? { detail: type } : {}),
+  };
+}
+
+/** Anything the provider THREW, including a rejection carrying an ErrorResponse shape. */
+export function outcomeFromThrown<T>(err: unknown): WalletOutcome<T> {
+  if (isErrorResponse(err)) return outcomeFromErrorResponse<T>(err);
+  const message = err instanceof Error ? err.message : String(err);
+  if (CANCEL_RE.test(message)) {
+    return { status: 'cancelled', message: 'You cancelled the wallet dialog.' };
+  }
+  return { status: 'error', message: message || 'The wallet could not complete that.' };
+}
+
+/** Collapses "resolved with an error object", "threw", and "resolved with a value". */
+async function attempt<T>(run: () => Promise<T | ErrorResponse>): Promise<WalletOutcome<T>> {
+  try {
+    const result = await run();
+    if (isErrorResponse(result)) return outcomeFromErrorResponse<T>(result);
+    return { status: 'ok', value: result as T };
+  } catch (err) {
+    return outcomeFromThrown<T>(err);
+  }
+}
+
+/** The address the FakeWallet pays from. Shape-valid, and not a wallet anyone holds. */
+export const FAKE_PAYER_ADDRESS = 'NQ64 P4YR 0000 0000 0000 0000 0000 0000 0001';
+
+async function devCall(payload: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const response = await fetch('/api/dev/fake-chain', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const json = (await response.json()) as Record<string, unknown>;
+  if (!response.ok) {
+    const error = json.error as { message?: string } | undefined;
+    throw new Error(error?.message ?? 'The development fake chain refused that.');
+  }
+  return json;
+}
+
+/**
+ * Development stand-in, with the same three outcomes as the real adapter so no screen can be
+ * written against a shape only the fake produces. It talks to `/api/dev/fake-chain`, which
+ * only answers while the server is running the fake chain, so it cannot fabricate a payment.
+ *
+ * `cancelNext()` makes the next call come back cancelled, which is how the cancelled screens
+ * are exercised without a phone.
+ */
+export class FakeWallet implements WalletAdapter {
+  private cancelNextCall = false;
+
+  cancelNext(): void {
+    this.cancelNextCall = true;
+  }
+
+  private takeCancel(): boolean {
+    const cancelling = this.cancelNextCall;
+    this.cancelNextCall = false;
+    return cancelling;
+  }
+
+  async listAccounts(): Promise<WalletOutcome<string[]>> {
+    return { status: 'ok', value: [FAKE_PAYER_ADDRESS] };
+  }
+
+  async sign(message: string): Promise<WalletOutcome<SignatureResult>> {
+    if (this.takeCancel()) {
+      return { status: 'cancelled', message: 'You cancelled the wallet dialog.' };
+    }
+    return attempt(async () => {
+      const result = await devCall({ action: 'sign', address: FAKE_PAYER_ADDRESS, message });
+      return { publicKey: String(result.publicKey), signature: String(result.signature) };
+    });
+  }
+
+  async sendPayment(request: SendPaymentRequest): Promise<WalletOutcome<SentPayment>> {
+    if (this.takeCancel()) {
+      return { status: 'cancelled', message: 'You cancelled the wallet dialog.' };
+    }
+    return attempt(async () => {
+      const result = await devCall({
+        action: 'send',
+        from: FAKE_PAYER_ADDRESS,
+        to: request.recipient,
+        valueLuna: request.value,
+        data: request.data,
+      });
+      return classifySendResult(String(result.hash));
+    });
+  }
+}
+
+export class NimiqPayWallet implements WalletAdapter {
+  async listAccounts(): Promise<WalletOutcome<string[]>> {
+    const provider = getProvider();
+    if (!provider) return noProvider();
+    return attempt(() => provider.listAccounts());
+  }
+
+  async sign(message: string): Promise<WalletOutcome<SignatureResult>> {
+    const provider = getProvider();
+    if (!provider) return noProvider();
+    return attempt(() => provider.sign(message));
+  }
+
+  async sendPayment(request: SendPaymentRequest): Promise<WalletOutcome<SentPayment>> {
+    const provider = getProvider();
+    if (!provider) return noProvider();
+    // No sender parameter exists: the wallet chooses the account and shows a native
+    // confirmation, which the user can cancel.
+    const sent = await attempt<string>(() =>
+      provider.sendBasicTransactionWithData({
+        recipient: request.recipient,
+        value: request.value,
+        data: request.data,
+        ...(request.fee === undefined ? {} : { fee: request.fee }),
+        ...(request.validityStartHeight === undefined
+          ? {}
+          : { validityStartHeight: request.validityStartHeight }),
+      }),
+    );
+    if (sent.status !== 'ok') return sent;
+    if (typeof sent.value !== 'string' || sent.value.trim() === '') {
+      // The wallet said yes but told us nothing. The payment may well be on its way, so this
+      // is NOT reported as a failure to send — the server scans for the reference instead.
+      return { status: 'ok', value: { raw: '', kind: 'serialized', txHash: null } };
+    }
+    return { status: 'ok', value: classifySendResult(sent.value) };
+  }
+}
+
+type Provider = NonNullable<typeof window.nimiq>;
+
+function getProvider(): Provider | undefined {
+  return typeof window === 'undefined' ? undefined : window.nimiq;
+}
+
+function noProvider<T>(): WalletOutcome<T> {
+  return { status: 'error', message: 'No Nimiq wallet is available on this device.' };
+}
+
+let fake: FakeWallet | null = null;
+let real: NimiqPayWallet | null = null;
+
+export function isFakeWallet(): boolean {
+  return getProvider() === undefined;
+}
+
+export function getWallet(): WalletAdapter {
+  if (!isFakeWallet()) {
+    real ??= new NimiqPayWallet();
+    return real;
+  }
+  fake ??= new FakeWallet();
+  return fake;
+}
+
+/** Test aid, and the only way to clear the memoised adapters. */
+export function resetWallet(): void {
+  fake = null;
+  real = null;
+}
+
+/** Shortens an address for a "you are paying from NQ…" line without hiding which one it is. */
+export function shortAddress(address: string): string {
+  const compact = address.replace(/\s+/g, '');
+  if (compact.length <= 12) return address;
+  return `${compact.slice(0, 6)}…${compact.slice(-4)}`;
+}
