@@ -1,0 +1,13 @@
+{
+  "name": "rewind-spike-sign-verify",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "selftest": "node selftest.mjs",
+    "server": "node server.mjs"
+  },
+  "dependencies": {
+    "@nimiq/core": "2.21.0"
+  }
+}

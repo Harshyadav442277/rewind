@@ -1,0 +1,6 @@
+node_modules/
+dist/
+captures/
+payload*.json
+server.log
+.env.local

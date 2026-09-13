@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Rewind spike — sign / verify</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #0e1116;
+        --card: #171b22;
+        --line: #2a313c;
+        --fg: #e8ecf1;
+        --muted: #97a2b0;
+        --accent: #f6c343;
+        --ok: #3ddc84;
+        --bad: #ff6b6b;
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); }
+      body {
+        font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        padding: 16px 16px calc(32px + env(safe-area-inset-bottom));
+        max-width: 640px;
+        margin: 0 auto;
+      }
+      h1 { font-size: 20px; margin: 4px 0 2px; }
+      .sub { color: var(--muted); font-size: 13px; margin-bottom: 16px; }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 14px;
+        margin-bottom: 14px;
+      }
+      .card h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 0 0 10px; }
+      button {
+        width: 100%;
+        min-height: 60px;
+        font-size: 18px;
+        font-weight: 600;
+        border-radius: 12px;
+        border: 1px solid var(--line);
+        background: #222834;
+        color: var(--fg);
+        margin-bottom: 10px;
+        touch-action: manipulation;
+        cursor: pointer;
+      }
+      button.primary { background: var(--accent); color: #16181d; border-color: var(--accent); }
+      button:disabled { opacity: .45; }
+      button:active { transform: translateY(1px); }
+      textarea, input {
+        width: 100%;
+        background: #0b0e13;
+        color: var(--fg);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 10px;
+        font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+      textarea { min-height: 190px; resize: vertical; }
+      input { min-height: 46px; font-size: 14px; }
+      pre {
+        white-space: pre-wrap;
+        word-break: break-all;
+        font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        margin: 0;
+        color: var(--muted);
+      }
+      .row { display: flex; gap: 10px; }
+      .row > button { flex: 1; }
+      .badge { display: inline-block; padding: 3px 9px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+      .badge.ok { background: rgba(61,220,132,.15); color: var(--ok); }
+      .badge.bad { background: rgba(255,107,107,.15); color: var(--bad); }
+      .badge.idle { background: rgba(151,162,176,.15); color: var(--muted); }
+      label { display: block; font-size: 12px; color: var(--muted); margin: 8px 0 4px; }
+      ul { margin: 0; padding-left: 18px; }
+      li { font: 13px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; word-break: break-all; }
+    </style>
+  </head>
+  <body>
+    <h1>Rewind spike — gate N11</h1>
+    <div class="sub">Nimiq Pay <code>window.nimiq.sign()</code> → server-side verify. Read-only: no transaction is ever sent.</div>
+
+    <div class="card">
+      <h2>1 — Environment</h2>
+      <pre id="env">checking…</pre>
+    </div>
+
+    <div class="card">
+      <h2>2 — Accounts</h2>
+      <button id="connect" class="primary">Connect (listAccounts)</button>
+      <ul id="accounts"><li style="color:var(--muted)">not connected</li></ul>
+    </div>
+
+    <div class="card">
+      <h2>3 — Sign the challenge</h2>
+      <label>challenge string (signed verbatim)</label>
+      <pre id="challenge">—</pre>
+      <div class="row">
+        <button id="newChallenge">New challenge</button>
+      </div>
+      <button id="sign" class="primary" disabled>Sign</button>
+    </div>
+
+    <div class="card">
+      <h2>4 — Payload <span id="payloadBadge" class="badge idle">empty</span></h2>
+      <textarea id="payload" readonly placeholder="{ message, accounts, publicKey, signature } appears here after signing"></textarea>
+      <div class="row">
+        <button id="copy">Copy JSON</button>
+        <button id="send">Send to server</button>
+      </div>
+      <label>verify server base URL</label>
+      <input id="serverUrl" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false" />
+    </div>
+
+    <div class="card">
+      <h2>5 — Verification result <span id="gateBadge" class="badge idle">not run</span></h2>
+      <pre id="result">Send the payload, or copy it and run:
+  node verify.mjs --file payload.json --rpc</pre>
+    </div>
+
+    <div class="card">
+      <h2>Log</h2>
+      <pre id="log"></pre>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
