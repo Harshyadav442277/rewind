@@ -625,20 +625,34 @@ describe.skipIf(!embedded)('PostgresRepository against a real Postgres engine', 
       expect(result.challenge.consumedAt).not.toBeNull();
     });
 
-    it('accepts a signature from another address and still refunds only the payer', async () => {
+    it('refuses a signature from any other wallet and leaves the order PAID', async () => {
       const h = harness();
       const order = await createPaidOrder(h);
       const signed = await signRefundRequest(h, order.id, OTHER);
 
       const result = await submitSignedRefundRequest(h.deps, { orderId: order.id, ...signed });
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.reason).toBe('wrong_signer');
+      expect((await repo.getOrder(order.id))?.state).toBe('PAID');
+    });
+
+    it('refunds the wallet that funded an HTLC payer, over Postgres', async () => {
+      const h = harness();
+      const htlc = 'NQ66 DL0K CXPR 0ACP 0D7T 06G4 67KT SQ6P 7M05';
+      const funder = 'NQ87 T28S MDL1 TUC7 7L8L 5BED J4HC KBM7 MUXR';
+      h.chain.setHtlc(htlc, funder);
+      const order = await createPaidOrder(h, { payer: htlc });
+      const signed = await signRefundRequest(h, order.id, funder);
+
+      const result = await submitSignedRefundRequest(h.deps, { orderId: order.id, ...signed });
       expect(result.ok).toBe(true);
-      if (!result.ok) return;
-      expect(result.challenge.signerAddress).toBe(OTHER);
 
       const reserved = await reserveRefund(h.deps, order.id);
       expect(reserved.ok).toBe(true);
       if (!reserved.ok) return;
-      expect(reserved.execution.refundTo).toBe(PAYER);
+      expect(reserved.execution.refundTo).toBe(funder);
+      expect((await repo.getChallenge(signed.nonce))?.refundTo).toBe(funder);
     });
 
     it('refuses a replayed challenge nonce', async () => {

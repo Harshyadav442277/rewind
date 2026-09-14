@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { api, type ChallengeView, type OrderStatus } from '../api';
+import { api, type ChallengeView } from '../api';
 import { ApiError } from '../api';
 import { navigate } from '../App';
 import { Banner, Card, Disclosure, Kv, Mono } from '../components/ui';
@@ -10,7 +10,6 @@ type Phase = 'loading' | 'ready' | 'signing' | 'submitted' | 'cancelled' | 'erro
 export function RefundScreen({ orderId }: { orderId: string }) {
   const [phase, setPhase] = useState<Phase>('loading');
   const [challenge, setChallenge] = useState<ChallengeView | null>(null);
-  const [status, setStatus] = useState<OrderStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   /** The API's own words for a rejected signature, shown as-is. */
   const [apiDetail, setApiDetail] = useState<string | null>(null);
@@ -21,12 +20,8 @@ export function RefundScreen({ orderId }: { orderId: string }) {
     setError(null);
     setApiDetail(null);
     try {
-      const [response, current] = await Promise.all([
-        api.requestChallenge(orderId),
-        api.getOrder(orderId).catch(() => null),
-      ]);
+      const response = await api.requestChallenge(orderId);
       setChallenge(response.challenge);
-      if (current) setStatus(current);
       setPhase('ready');
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -85,7 +80,9 @@ export function RefundScreen({ orderId }: { orderId: string }) {
     }
   }
 
-  const payer = status?.order.payerAddress ?? challenge?.refundTo ?? null;
+  // The destination is resolved on chain when the challenge is issued. For a Nimiq Pay payment
+  // it is the wallet that funded the paying HTLC, not the HTLC address the payment came from.
+  const refundTo = challenge?.refundTo ?? null;
   const expiresIn = challenge
     ? Math.max(0, challenge.expiresAtSec - Math.floor(Date.now() / 1000))
     : 0;
@@ -94,13 +91,14 @@ export function RefundScreen({ orderId }: { orderId: string }) {
     <main className="screen">
       <Card title="Request a refund">
         <p>
-          <strong>Sign to request the refund.</strong> The refund can only go back to the
-          address that paid, checked on chain. Signing moves no NIM and costs no fee.
+          <strong>Sign with the wallet that paid.</strong> Rewind checks on chain which wallet
+          funded the payment, sends the refund back to it, and accepts only that wallet's
+          signature. Signing moves no NIM and costs no fee.
         </p>
-        {payer ? (
+        {refundTo ? (
           <dl style={{ margin: '0 0 12px' }}>
             <Kv label="Refund goes to">
-              <Mono value={payer} max={16} />
+              <Mono value={refundTo} max={16} />
             </Kv>
             {challenge ? <Kv label="Refund amount">{challenge.amountLuna} Luna</Kv> : null}
             {challenge ? <Kv label="Request valid for">{expiresIn}s</Kv> : null}

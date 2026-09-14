@@ -25,7 +25,7 @@
 import { buildChallenge, checkChallengeAgainstOrder, parseChallenge } from './challenge.js';
 import { checkTreasuryCaps, describeCapDenial, type CapDenialReason } from './demo-treasury.js';
 import type { DomainDeps } from './deps.js';
-import { buildReference, normalizeAddress, normalizeTxHash } from './nimiq.js';
+import { addressEquals, buildReference, normalizeAddress, normalizeTxHash } from './nimiq.js';
 import type { Order, RefundChallenge, RefundExecution } from './types.js';
 import { describeMismatch, verifyRefund, type Mismatch } from './verify.js';
 import { UniqueViolationError } from '../db/repository.js';
@@ -36,7 +36,42 @@ import { UniqueViolationError } from '../db/repository.js';
 
 export type IssueChallengeResult =
   | { ok: true; challenge: RefundChallenge }
-  | { ok: false; reason: 'not_found' | 'not_paid' | 'already_requested'; detail: string };
+  | {
+      ok: false;
+      reason: 'not_found' | 'not_paid' | 'already_requested' | 'unrefundable_payer';
+      detail: string;
+    };
+
+export type RefundDestination = { ok: true; address: string } | { ok: false; detail: string };
+
+/**
+ * The wallet a refund for this payer can land in, read from the chain.
+ *
+ * Nimiq Pay does not pay from the user's wallet directly. It pays out of an HTLC that the
+ * user's wallet funded, and it signs with that funding wallet (observed 2026-09-14 on mainnet,
+ * `NQ66…` HTLC funded by `NQ87…`, and on testnet, `NQ34…` funded by the same `NQ87…`; GAPS N29).
+ * An HTLC rejects an incoming transfer — the first mainnet refund to one executed as failed —
+ * so an HTLC payer resolves to its funder. A basic account is its own destination. Any other
+ * account type is refused rather than guessed at.
+ */
+export async function resolveRefundDestination(
+  deps: DomainDeps,
+  payerAddress: string,
+): Promise<RefundDestination> {
+  const account = (await deps.chain.getAccountByAddress(payerAddress)).data;
+  const type = account.type;
+  if (type === 'basic' || type === 0) {
+    const address = normalizeAddress(payerAddress);
+    return address ? { ok: true, address } : { ok: false, detail: `bad payer address ${payerAddress}` };
+  }
+  if (type === 'htlc' || type === 2) {
+    const funder = account.sender === undefined ? null : normalizeAddress(account.sender);
+    return funder
+      ? { ok: true, address: funder }
+      : { ok: false, detail: `htlc ${payerAddress} has no readable funder` };
+  }
+  return { ok: false, detail: `payer ${payerAddress} is a ${String(type)} account` };
+}
 
 export async function issueRefundChallenge(
   deps: DomainDeps,
@@ -56,6 +91,9 @@ export async function issueRefundChallenge(
     return { ok: false, reason: 'not_paid', detail: 'no verified payment on this order' };
   }
 
+  const destination = await resolveRefundDestination(deps, order.payerAddress);
+  if (!destination.ok) return { ok: false, reason: 'unrefundable_payer', detail: destination.detail };
+
   const nowMs = deps.clock.nowMs();
   const expiresAtSec = Math.floor(nowMs / 1000) + deps.config.challengeTtlSec;
   const nonce = deps.random.hex(16);
@@ -63,7 +101,7 @@ export async function issueRefundChallenge(
     orderId: order.id,
     paymentTxHash: order.paymentTxHash,
     amountLuna: order.amountLuna,
-    refundTo: order.payerAddress,
+    refundTo: destination.address,
     nonce,
     expiresAtSec,
   });
@@ -72,7 +110,7 @@ export async function issueRefundChallenge(
     nonce,
     orderId: order.id,
     message,
-    refundTo: order.payerAddress,
+    refundTo: destination.address,
     amountLuna: order.amountLuna,
     paymentTxHash: order.paymentTxHash,
     expiresAtSec,
@@ -104,6 +142,7 @@ export type SubmitRefundFailure =
   | 'message_mismatch'
   | 'challenge_rejected'
   | 'bad_signature'
+  | 'wrong_signer'
   | 'nonce_already_used'
   | 'wrong_state';
 
@@ -143,7 +182,12 @@ export async function submitSignedRefundRequest(
     return fail('message_mismatch', 'signed text differs from the issued challenge', 'The signed text does not match the request Rewind issued.');
   }
 
-  const check = checkChallengeAgainstOrder(parsed.value, order, Math.floor(deps.clock.nowMs() / 1000));
+  const check = checkChallengeAgainstOrder(
+    parsed.value,
+    order,
+    Math.floor(deps.clock.nowMs() / 1000),
+    stored.refundTo,
+  );
   if (!check.ok) {
     const human =
       check.reason === 'expired'
@@ -160,12 +204,16 @@ export async function submitSignedRefundRequest(
   if (!verification.ok) {
     return fail('bad_signature', verification.reason, 'That signature could not be verified.');
   }
-  // The signer does not have to be the payer. Nimiq Pay pays from one address of a wallet and
-  // signs with another, and the mini-app SDK lets the app choose neither (GAPS N29). What keeps
-  // the money safe is the destination: `refundTo` is part of the signed text and
-  // `checkChallengeAgainstOrder` has already required it to equal the chain-verified payer, so
-  // a request from any signer can only send the NIM back to the address that paid. The signer
-  // is recorded for the receipt.
+  // Only the wallet the refund goes back to may ask for it. `stored.refundTo` was resolved from
+  // the chain when the challenge was issued: the payer itself, or the wallet that funded the
+  // payer's HTLC, which is the wallet Nimiq Pay signs with.
+  if (!addressEquals(verification.address, stored.refundTo)) {
+    return fail(
+      'wrong_signer',
+      `${verification.address} != ${stored.refundTo}`,
+      'That signature is not from the wallet this refund goes back to.',
+    );
+  }
 
   // Consume the nonce first. A replay of the same signed text loses here, before any state moves.
   const consumed = await deps.repo.consumeChallenge(parsed.value.nonce, {

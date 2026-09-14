@@ -211,6 +211,7 @@ export class RpcChainReader implements ChainReader {
       address: typeof account.address === 'string' ? account.address : address,
       balance: account.balance,
       ...(account.type === undefined ? {} : { type: account.type }),
+      ...(typeof account.sender === 'string' ? { sender: account.sender } : {}),
     });
   }
 

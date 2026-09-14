@@ -14,7 +14,6 @@ import {
 } from './refund-reservation.js';
 import {
   OTHER,
-  PAYER,
   createPaidOrder,
   installGate,
   makeHarness,
@@ -41,21 +40,79 @@ describe('signed refund request', () => {
     expect(result.challenge.consumedAt).not.toBeNull();
   });
 
-  it('accepts a signature from another address, and the refund still goes only to the payer', async () => {
-    // Nimiq Pay pays from one address of a wallet and signs with another (GAPS N29).
+  it('rejects a signature from any other wallet', async () => {
     const h = makeHarness();
     const order = await createPaidOrder(h);
     const signed = await signRefundRequest(h, order.id, OTHER);
 
     const result = await submitSignedRefundRequest(h.deps, { orderId: order.id, ...signed });
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(result.challenge.signerAddress).toBe(OTHER);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toBe('wrong_signer');
 
-    const reserved = await reserveRefund(h.deps, order.id);
-    expect(reserved.ok).toBe(true);
-    if (!reserved.ok) return;
-    expect(reserved.execution.refundTo).toBe(PAYER);
+    const fresh = await h.repo.getOrder(order.id);
+    expect(fresh?.state).toBe('PAID');
+  });
+
+  describe('a payer that is an HTLC, the way Nimiq Pay pays (GAPS N29)', () => {
+    // The mainnet pair observed on 2026-09-14.
+    const HTLC = 'NQ66 DL0K CXPR 0ACP 0D7T 06G4 67KT SQ6P 7M05';
+    const FUNDER = 'NQ87 T28S MDL1 TUC7 7L8L 5BED J4HC KBM7 MUXR';
+
+    it('sends the refund to the wallet that funded the HTLC, never to the HTLC', async () => {
+      const h = makeHarness();
+      h.chain.setHtlc(HTLC, FUNDER);
+      const order = await createPaidOrder(h, { payer: HTLC });
+      expect(order.payerAddress).toBe(HTLC);
+
+      const signed = await signRefundRequest(h, order.id, FUNDER);
+      expect(signed.message).toContain(`refundTo=${FUNDER}`);
+
+      const result = await submitSignedRefundRequest(h.deps, { orderId: order.id, ...signed });
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.challenge.signerAddress).toBe(FUNDER);
+
+      const reserved = await reserveRefund(h.deps, order.id);
+      expect(reserved.ok).toBe(true);
+      if (!reserved.ok) return;
+      expect(reserved.execution.refundTo).toBe(FUNDER);
+    });
+
+    it('refuses a signature from the HTLC address or any wallet other than the funder', async () => {
+      const h = makeHarness();
+      h.chain.setHtlc(HTLC, FUNDER);
+      for (const signer of [HTLC, OTHER]) {
+        const order = await createPaidOrder(h, { payer: HTLC });
+        const signed = await signRefundRequest(h, order.id, signer);
+        const result = await submitSignedRefundRequest(h.deps, { orderId: order.id, ...signed });
+        expect(result.ok).toBe(false);
+        if (result.ok) return;
+        expect(result.reason).toBe('wrong_signer');
+      }
+    });
+  });
+
+  it('issues no refund request when the payer is an account it cannot refund', async () => {
+    const h = makeHarness();
+    const order = await createPaidOrder(h);
+    const inner = h.deps.chain;
+    const staking: ChainReader = {
+      getBlockNumber: () => inner.getBlockNumber(),
+      getAccountByAddress: async (address) => ({
+        data: { address, balance: 1, type: 'staking' },
+        fetchedAtMs: h.clock.nowMs(),
+        source: 'network',
+      }),
+      getTransactionByHash: (hash) => inner.getTransactionByHash(hash),
+      getTransactionsByAddress: (address, max, startAt) =>
+        inner.getTransactionsByAddress(address, max, startAt),
+    };
+
+    const issued = await issueRefundChallenge({ ...h.deps, chain: staking }, order.id);
+    expect(issued.ok).toBe(false);
+    if (issued.ok) return;
+    expect(issued.reason).toBe('unrefundable_payer');
   });
 
   it('rejects an expired challenge', async () => {
