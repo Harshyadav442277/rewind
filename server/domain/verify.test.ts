@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { buildReference, utf8ToHex, type RpcTransaction } from './nimiq';
-import { verifyPayment, verifyRefund, type TransferExpectation } from './verify';
-import { OTHER, PAYER, TREASURY } from './test-helpers';
+import { buildReference, utf8ToHex, type RpcTransaction } from './nimiq.js';
+import { verifyPayment, verifyRefund, type TransferExpectation } from './verify.js';
+import { OTHER, PAYER, TREASURY } from './test-helpers.js';
 
 const ORDER_ID = 'order123456';
 

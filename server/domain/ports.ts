@@ -9,7 +9,7 @@
  * not cryptography.
  */
 
-import type { RpcAccount, RpcTransaction } from './nimiq';
+import type { RpcAccount, RpcTransaction } from './nimiq.js';
 
 export interface Clock {
   nowMs(): number;

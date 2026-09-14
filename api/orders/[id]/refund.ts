@@ -1,4 +1,4 @@
-import { getDeps } from '../../_lib/deps';
+import { getDeps } from '../../_lib/deps.js';
 import {
   clientIp,
   methodNotAllowed,
@@ -10,16 +10,16 @@ import {
   withErrors,
   type ApiRequest,
   type ApiResponse,
-} from '../../_lib/http';
-import { DEFAULT_LIMITS, rateLimit } from '../../_lib/ratelimit';
-import { challengeView, orderView } from '../../_lib/views';
-import { executionView } from '../../_lib/views';
+} from '../../_lib/http.js';
+import { DEFAULT_LIMITS, rateLimit } from '../../_lib/ratelimit.js';
+import { challengeView, orderView } from '../../_lib/views.js';
+import { executionView } from '../../_lib/views.js';
 import {
   executeTreasuryRefund,
   reserveRefund,
   settleRefund,
   submitSignedRefundRequest,
-} from '../../../server/domain/refund-reservation';
+} from '../../../server/domain/refund-reservation.js';
 
 /**
  * POST /api/orders/:id/refund   { message, publicKey, signature }

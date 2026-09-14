@@ -11,7 +11,7 @@
  * confirmed, because the alternative is a retry loop that spends past the cap.
  */
 
-import type { DemoRefundLedgerRow } from './types';
+import type { DemoRefundLedgerRow } from './types.js';
 
 export interface TreasuryCaps {
   /** Largest single refund the treasury will send. */

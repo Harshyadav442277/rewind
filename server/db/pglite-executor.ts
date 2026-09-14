@@ -16,7 +16,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import type { SqlExecutor, SqlRow } from './sql-executor';
+import type { SqlExecutor, SqlRow } from './sql-executor.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 

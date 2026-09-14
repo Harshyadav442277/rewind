@@ -4,9 +4,9 @@ import {
   checkChallengeAgainstOrder,
   parseChallenge,
   CHALLENGE_HEADER,
-} from './challenge';
-import type { Order } from './types';
-import { PAYER, TREASURY } from './test-helpers';
+} from './challenge.js';
+import type { Order } from './types.js';
+import { PAYER, TREASURY } from './test-helpers.js';
 
 const PAYMENT_TX = 'a'.repeat(64);
 const NONCE = '0123456789abcdef0123456789abcdef';

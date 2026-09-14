@@ -1,4 +1,4 @@
-import { getDeps } from '../../_lib/deps';
+import { getDeps } from '../../_lib/deps.js';
 import {
   clientIp,
   methodNotAllowed,
@@ -8,10 +8,10 @@ import {
   withErrors,
   type ApiRequest,
   type ApiResponse,
-} from '../../_lib/http';
-import { DEFAULT_LIMITS, rateLimit } from '../../_lib/ratelimit';
-import { challengeView, orderView } from '../../_lib/views';
-import { issueRefundChallenge } from '../../../server/domain/refund-reservation';
+} from '../../_lib/http.js';
+import { DEFAULT_LIMITS, rateLimit } from '../../_lib/ratelimit.js';
+import { challengeView, orderView } from '../../_lib/views.js';
+import { issueRefundChallenge } from '../../../server/domain/refund-reservation.js';
 
 /**
  * POST /api/orders/:id/refund-challenge

@@ -1,4 +1,4 @@
-import type { OrderState } from './states';
+import type { OrderState } from './states.js';
 
 /** Where the refund NIM comes from. */
 export type RefundSource = 'MERCHANT_WALLET' | 'DEMO_TREASURY';

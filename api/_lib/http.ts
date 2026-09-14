@@ -7,7 +7,7 @@
  * package installed, and so the dev-server adapter can implement them directly.
  */
 
-import { ChainUnavailableError } from '../../server/domain/ports';
+import { ChainUnavailableError } from '../../server/domain/ports.js';
 
 export interface ApiRequest {
   method?: string | undefined;

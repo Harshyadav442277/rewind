@@ -1,4 +1,4 @@
-import { DEMO_MERCHANT, getDeps, IS_FAKE_CHAIN, IS_LIGHT_CLIENT, NETWORK_NAME, REPO_MODE } from './_lib/deps';
+import { DEMO_MERCHANT, getDeps, IS_FAKE_CHAIN, IS_LIGHT_CLIENT, NETWORK_NAME, REPO_MODE } from './_lib/deps.js';
 import {
   clientIp,
   methodNotAllowed,
@@ -7,11 +7,11 @@ import {
   withErrors,
   type ApiRequest,
   type ApiResponse,
-} from './_lib/http';
-import { DEFAULT_LIMITS, rateLimit } from './_lib/ratelimit';
-import { explorerBase } from './_lib/views';
-import { formatLuna } from '../server/domain/nimiq';
-import { ChainUnavailableError } from '../server/domain/ports';
+} from './_lib/http.js';
+import { DEFAULT_LIMITS, rateLimit } from './_lib/ratelimit.js';
+import { explorerBase } from './_lib/views.js';
+import { formatLuna } from '../server/domain/nimiq.js';
+import { ChainUnavailableError } from '../server/domain/ports.js';
 
 /**
  * GET /api/health

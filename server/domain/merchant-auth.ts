@@ -27,7 +27,7 @@
  * consumed, so one signature can back the merchant board's polling for its whole window.
  */
 
-import { isValidAddress, isValidOrderId, normalizeAddress } from './nimiq';
+import { isValidAddress, isValidOrderId, normalizeAddress } from './nimiq.js';
 
 export const MERCHANT_CHALLENGE_HEADER = 'REWIND_MERCHANT_V1';
 export const DEFAULT_MERCHANT_CHALLENGE_TTL_SEC = 120;

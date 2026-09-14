@@ -27,8 +27,8 @@ import {
   isValidOrderId,
   isValidTxHash,
   normalizeAddress,
-} from './nimiq';
-import type { Order } from './types';
+} from './nimiq.js';
+import type { Order } from './types.js';
 
 export const CHALLENGE_HEADER = 'REWIND_REFUND_V1';
 export const DEFAULT_CHALLENGE_TTL_SEC = 300;

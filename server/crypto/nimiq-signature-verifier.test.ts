@@ -16,7 +16,7 @@ import {
   signedMessageDigest,
   signedMessagePreimage,
   normalizeHex,
-} from './nimiq-signature-verifier';
+} from './nimiq-signature-verifier.js';
 
 const verifier = new NimiqSignatureVerifier();
 
@@ -88,7 +88,7 @@ describe('NimiqSignatureVerifier', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.address).toMatch(/^NQ\d{2}(?: [0-9A-HJ-NP-VXY]{4}){8}$/);
-    const { isValidAddress } = await import('../domain/nimiq');
+    const { isValidAddress } = await import('../domain/nimiq.js');
     expect(isValidAddress(result.address)).toBe(true);
   });
 

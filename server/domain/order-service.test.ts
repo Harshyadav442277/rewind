@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { buildReference } from './nimiq';
-import { ChainUnavailableError } from './ports';
-import { createOrder, submitPaymentHint, verifyOrderPayment } from './order-service';
-import { AMOUNT_LUNA, PAYER, createPaidOrder, makeHarness } from './test-helpers';
+import { buildReference } from './nimiq.js';
+import { ChainUnavailableError } from './ports.js';
+import { createOrder, submitPaymentHint, verifyOrderPayment } from './order-service.js';
+import { AMOUNT_LUNA, PAYER, createPaidOrder, makeHarness } from './test-helpers.js';
 
 async function freshOrder(h: ReturnType<typeof makeHarness>) {
   const created = await createOrder(h.deps, {
@@ -164,7 +164,7 @@ describe('payment verification', () => {
     const order = await freshOrder(h);
     h.clock.advance(h.deps.config.orderTtlMs + 1);
 
-    const { expireOrderIfStale } = await import('./order-service');
+    const { expireOrderIfStale } = await import('./order-service.js');
     const expired = await expireOrderIfStale(h.deps, order.id);
     expect(expired?.state).toBe('EXPIRED');
   });

@@ -1,8 +1,8 @@
 /** Shared fixtures for the domain tests. Offline: no timers that wait, no sockets, no files. */
 
-import { InMemoryRepository } from '../db/memory';
-import type { Repository } from '../db/repository';
-import { DEFAULT_CONFIG, type DomainConfig, type DomainDeps } from './deps';
+import { InMemoryRepository } from '../db/memory.js';
+import type { Repository } from '../db/repository.js';
+import { DEFAULT_CONFIG, type DomainConfig, type DomainDeps } from './deps.js';
 import {
   FakeChain,
   FakeChainReader,
@@ -13,11 +13,11 @@ import {
   SeededRandom,
   fakeKeyFor,
   fakeSign,
-} from './fakes';
-import { buildReference } from './nimiq';
-import { createOrder, submitPaymentHint, verifyOrderPayment } from './order-service';
-import { issueRefundChallenge, submitSignedRefundRequest } from './refund-reservation';
-import type { Merchant, Order } from './types';
+} from './fakes.js';
+import { buildReference } from './nimiq.js';
+import { createOrder, submitPaymentHint, verifyOrderPayment } from './order-service.js';
+import { issueRefundChallenge, submitSignedRefundRequest } from './refund-reservation.js';
+import type { Merchant, Order } from './types.js';
 
 export const TREASURY = 'NQ79 TR3A 5URY 0000 0000 0000 0000 0000 0001';
 export const PAYER = 'NQ64 P4YR 0000 0000 0000 0000 0000 0000 0001';

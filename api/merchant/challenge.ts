@@ -1,4 +1,4 @@
-import { getDeps } from '../_lib/deps';
+import { getDeps } from '../_lib/deps.js';
 import {
   clientIp,
   methodNotAllowed,
@@ -9,10 +9,10 @@ import {
   withErrors,
   type ApiRequest,
   type ApiResponse,
-} from '../_lib/http';
-import { DEFAULT_LIMITS, rateLimit } from '../_lib/ratelimit';
-import { issueAndRecordMerchantChallenge, merchantAuthRequired } from '../_lib/merchant-auth';
-import { isMerchantAction, LIST_ORDER_SENTINEL } from '../../server/domain/merchant-auth';
+} from '../_lib/http.js';
+import { DEFAULT_LIMITS, rateLimit } from '../_lib/ratelimit.js';
+import { issueAndRecordMerchantChallenge, merchantAuthRequired } from '../_lib/merchant-auth.js';
+import { isMerchantAction, LIST_ORDER_SENTINEL } from '../../server/domain/merchant-auth.js';
 
 /**
  * POST /api/merchant/challenge   { merchantId, orderId, action }

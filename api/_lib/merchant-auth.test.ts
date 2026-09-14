@@ -14,19 +14,19 @@ import {
   merchantAuthRequired,
   merchantNonceOf,
   type MerchantAuthEnv,
-} from './merchant-auth';
-import { NimiqSignatureVerifier, signedMessageDigest, SIGN_MESSAGE_PREFIX } from '../../server/crypto/nimiq-signature-verifier';
+} from './merchant-auth.js';
+import { NimiqSignatureVerifier, signedMessageDigest, SIGN_MESSAGE_PREFIX } from '../../server/crypto/nimiq-signature-verifier.js';
 import {
   buildMerchantChallenge,
   checkMerchantChallenge,
   LIST_ORDER_SENTINEL,
   MAX_MERCHANT_CHALLENGE_TTL_SEC,
   parseMerchantChallenge,
-} from '../../server/domain/merchant-auth';
-import { fakeKeyFor, fakeSign } from '../../server/domain/fakes';
-import { DEMO_MERCHANT, makeHarness, TREASURY } from '../../server/domain/test-helpers';
-import type { DomainDeps } from '../../server/domain/deps';
-import type { Merchant } from '../../server/domain/types';
+} from '../../server/domain/merchant-auth.js';
+import { fakeKeyFor, fakeSign } from '../../server/domain/fakes.js';
+import { DEMO_MERCHANT, makeHarness, TREASURY } from '../../server/domain/test-helpers.js';
+import type { DomainDeps } from '../../server/domain/deps.js';
+import type { Merchant } from '../../server/domain/types.js';
 
 /**
  * Gap S3: authenticateMerchant now requires the text to be one this server issued and

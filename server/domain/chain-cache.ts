@@ -1,5 +1,5 @@
-import type { RpcAccount, RpcTransaction } from './nimiq';
-import type { ChainRead, ChainReader, Clock } from './ports';
+import type { RpcAccount, RpcTransaction } from './nimiq.js';
+import type { ChainRead, ChainReader, Clock } from './ports.js';
 
 /**
  * A TTL cache in front of any ChainReader.

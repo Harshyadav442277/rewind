@@ -33,8 +33,8 @@
  * behind `RUN_RPC_TESTS=1` (`rpc-chain-reader.integration.test.ts`).
  */
 
-import type { RpcAccount, RpcTransaction } from '../domain/nimiq';
-import { ChainUnavailableError, type ChainRead, type ChainReader, type Clock } from '../domain/ports';
+import type { RpcAccount, RpcTransaction } from '../domain/nimiq.js';
+import { ChainUnavailableError, type ChainRead, type ChainReader, type Clock } from '../domain/ports.js';
 
 interface RpcEnvelope<T> {
   jsonrpc?: string;

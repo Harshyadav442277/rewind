@@ -27,14 +27,14 @@
  * `REWIND_CHAIN=lightclient` is refused in production (`api/_lib/deps.ts`).
  */
 
-import type { TxBroadcaster } from '../domain/ports';
-import { ChainUnavailableError } from '../domain/ports';
+import type { TxBroadcaster } from '../domain/ports.js';
+import { ChainUnavailableError } from '../domain/ports.js';
 import {
   getSharedLightClient,
   type LightClient,
   type NetworkName,
-} from './light-client-chain-reader';
-import { normalizeSerializedTx, verifySerializedTx } from './treasury-broadcaster';
+} from './light-client-chain-reader.js';
+import { normalizeSerializedTx, verifySerializedTx } from './treasury-broadcaster.js';
 
 export interface LightClientTxBroadcasterOptions {
   /** Compared against the transaction's own network before sending. */

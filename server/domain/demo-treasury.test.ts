@@ -4,10 +4,10 @@ import {
   checkTreasuryCaps,
   type CapInput,
   type TreasuryCaps,
-} from './demo-treasury';
-import { executeTreasuryRefund, reserveRefund, settleRefund } from './refund-reservation';
-import type { DemoRefundLedgerRow } from './types';
-import { PAYER, makeHarness, orderAwaitingApproval } from './test-helpers';
+} from './demo-treasury.js';
+import { executeTreasuryRefund, reserveRefund, settleRefund } from './refund-reservation.js';
+import type { DemoRefundLedgerRow } from './types.js';
+import { PAYER, makeHarness, orderAwaitingApproval } from './test-helpers.js';
 
 const NOW = 1_700_000_000_000;
 const HOUR = 60 * 60 * 1000;

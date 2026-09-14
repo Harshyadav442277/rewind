@@ -24,8 +24,8 @@ import {
   toRpcTransaction,
   type LightClient,
   type PlainTransactionDetailsLike,
-} from './light-client-chain-reader';
-import { ChainUnavailableError } from '../domain/ports';
+} from './light-client-chain-reader.js';
+import { ChainUnavailableError } from '../domain/ports.js';
 
 const clock = { nowMs: () => 1_700_000_000_000 };
 

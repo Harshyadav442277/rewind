@@ -17,14 +17,14 @@
  */
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { PostgresRepository } from './postgres';
-import { pgliteExecutor, type EmbeddedPostgres } from './pglite-executor';
-import { CONSTRAINTS, NotFoundError, UniqueViolationError } from './repository';
-import type { Repository } from './repository';
-import type { MerchantNonce, Order, RefundChallenge, RefundExecution } from '../domain/types';
-import type { DomainDeps } from '../domain/deps';
-import type { ChainReader } from '../domain/ports';
-import { DEFAULT_TREASURY_CAPS } from '../domain/demo-treasury';
+import { PostgresRepository } from './postgres.js';
+import { pgliteExecutor, type EmbeddedPostgres } from './pglite-executor.js';
+import { CONSTRAINTS, NotFoundError, UniqueViolationError } from './repository.js';
+import type { Repository } from './repository.js';
+import type { MerchantNonce, Order, RefundChallenge, RefundExecution } from '../domain/types.js';
+import type { DomainDeps } from '../domain/deps.js';
+import type { ChainReader } from '../domain/ports.js';
+import { DEFAULT_TREASURY_CAPS } from '../domain/demo-treasury.js';
 import {
   executeTreasuryRefund,
   reserveRefund,
@@ -32,7 +32,7 @@ import {
   resumeUnsettledRefunds,
   settleRefund,
   submitSignedRefundRequest,
-} from '../domain/refund-reservation';
+} from '../domain/refund-reservation.js';
 import {
   AMOUNT_LUNA,
   DEMO_MERCHANT,
@@ -45,7 +45,7 @@ import {
   orderAwaitingApproval,
   signRefundRequest,
   type HarnessOver,
-} from '../domain/test-helpers';
+} from '../domain/test-helpers.js';
 
 const embedded: EmbeddedPostgres | null = await pgliteExecutor();
 

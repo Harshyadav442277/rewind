@@ -6,9 +6,9 @@
  * as `claimedPaymentTxHash` / `intendedTxHash` and the UI labels it as unconfirmed.
  */
 
-import { formatLuna } from '../../server/domain/nimiq';
-import { STATE_LABELS } from '../../server/domain/states';
-import type { Order, RefundChallenge, RefundExecution } from '../../server/domain/types';
+import { formatLuna } from '../../server/domain/nimiq.js';
+import { STATE_LABELS } from '../../server/domain/states.js';
+import type { Order, RefundChallenge, RefundExecution } from '../../server/domain/types.js';
 
 /**
  * Explorer link prefix. `REWIND_EXPLORER_BASE` overrides it; otherwise the network decides,

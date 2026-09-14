@@ -1,4 +1,4 @@
-import { getDeps, getFakeChain, getFakeSignatureVerifier, IS_FAKE_CHAIN } from '../_lib/deps';
+import { getDeps, getFakeChain, getFakeSignatureVerifier, IS_FAKE_CHAIN } from '../_lib/deps.js';
 import {
   methodNotAllowed,
   readJsonBody,
@@ -8,9 +8,9 @@ import {
   withErrors,
   type ApiRequest,
   type ApiResponse,
-} from '../_lib/http';
-import { fakeKeyFor, fakeSign } from '../../server/domain/fakes';
-import { normalizeAddress } from '../../server/domain/nimiq';
+} from '../_lib/http.js';
+import { fakeKeyFor, fakeSign } from '../../server/domain/fakes.js';
+import { normalizeAddress } from '../../server/domain/nimiq.js';
 
 /**
  * DEVELOPMENT ONLY. The harness behind the FakeWallet.

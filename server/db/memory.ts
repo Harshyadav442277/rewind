@@ -19,8 +19,8 @@ import type {
   Order,
   RefundChallenge,
   RefundExecution,
-} from '../domain/types';
-import type { OrderState } from '../domain/states';
+} from '../domain/types.js';
+import type { OrderState } from '../domain/states.js';
 import {
   CONSTRAINTS,
   NotFoundError,
@@ -29,7 +29,7 @@ import {
   type ExecutionPatch,
   type OrderPatch,
   type Repository,
-} from './repository';
+} from './repository.js';
 
 const clone = <T>(value: T): T => structuredClone(value);
 
