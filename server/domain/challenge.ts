@@ -183,6 +183,11 @@ export function checkChallengeAgainstOrder(
   parsed: ParsedChallenge,
   order: Order,
   nowSec: number,
+  /**
+   * The refund destination resolved from the chain when the challenge was issued: the payer,
+   * or the wallet that funded the payer's HTLC. Defaults to the payer.
+   */
+  expectedRefundTo: string | null = order.payerAddress,
 ): ChallengeCheckResult {
   if (parsed.orderId !== order.id) {
     return { ok: false, reason: 'order_mismatch', detail: `${parsed.orderId} != ${order.id}` };
@@ -204,12 +209,12 @@ export function checkChallengeAgainstOrder(
       detail: `${parsed.amountLuna} != ${order.amountLuna}`,
     };
   }
-  // Full refunds only, and only ever to the verified payer.
-  if (normalizeAddress(parsed.refundTo) !== normalizeAddress(order.payerAddress)) {
+  // Full refunds only, and only ever to the destination resolved from the verified payment.
+  if (expectedRefundTo === null || normalizeAddress(parsed.refundTo) !== normalizeAddress(expectedRefundTo)) {
     return {
       ok: false,
       reason: 'refund_to_mismatch',
-      detail: `${parsed.refundTo} != ${order.payerAddress}`,
+      detail: `${parsed.refundTo} != ${expectedRefundTo ?? 'none'}`,
     };
   }
   if (parsed.expiresAtSec <= nowSec) {

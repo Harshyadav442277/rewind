@@ -62,6 +62,12 @@ export interface RpcAccount {
   /** Luna. */
   balance: number;
   type?: string | number;
+  /**
+   * HTLC accounts only: the address that funded the contract. Observed live 2026-09-14 on
+   * `rpc.nimiqwatch.com` as `{"type":"htlc","sender":"NQ87 …","recipient":…}` for the address
+   * Nimiq Pay pays from.
+   */
+  sender?: string;
 }
 
 // ---------------------------------------------------------------------------

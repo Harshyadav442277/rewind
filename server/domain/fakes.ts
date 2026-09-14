@@ -255,8 +255,16 @@ export class FakeChain {
     return tx;
   }
 
+  /** HTLC accounts by address, mapped to the address that funded them. Every other address is basic. */
+  readonly htlcFunders = new Map<string, string>();
+
   setBalance(address: string, luna: number): void {
     this.balances.set(normalizeAddress(address) ?? address, luna);
+  }
+
+  /** Makes `address` an HTLC funded by `funder`, the way Nimiq Pay's paying address is. */
+  setHtlc(address: string, funder: string): void {
+    this.htlcFunders.set(normalizeAddress(address) ?? address, funder);
   }
 
   balanceOf(address: string): number {
@@ -317,10 +325,12 @@ export class FakeChainReader implements ChainReader {
   }
 
   async getAccountByAddress(address: string): Promise<ChainRead<RpcAccount>> {
+    const normalized = normalizeAddress(address) ?? address;
+    const funder = this.chain.htlcFunders.get(normalized);
     return this.wrap({
-      address: normalizeAddress(address) ?? address,
+      address: normalized,
       balance: this.chain.balanceOf(address),
-      type: 'basic',
+      ...(funder === undefined ? { type: 'basic' } : { type: 'htlc', sender: funder }),
     });
   }
 

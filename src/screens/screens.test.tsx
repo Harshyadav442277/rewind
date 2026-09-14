@@ -355,12 +355,11 @@ describe('Refund request', () => {
     );
   });
 
-  it('shows the paying address as the only place the refund can go', async () => {
+  it('shows the wallet the refund goes back to and asks that wallet to sign', async () => {
     await render(<RefundScreen orderId={ORDER.id} />);
-    expect(text()).toContain('only go back to the address that paid');
+    expect(text()).toContain('Sign with the wallet that paid');
     expect(text()).toContain('Refund goes to');
     expect(text()).toContain('NQ64 P4YR');
-    expect(text()).not.toContain('This device');
   });
 
   it('keeps the canonical text behind a "what am I signing" toggle', async () => {

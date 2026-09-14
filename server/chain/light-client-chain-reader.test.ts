@@ -220,6 +220,19 @@ describe('the other three reads fail closed as well', () => {
     expect(read.data).toEqual({ address, balance: 11_000_000_000, type: 'basic' });
   });
 
+  it('getAccountByAddress: carries the funder of an HTLC account', async () => {
+    const funder = 'NQ87 T28S MDL1 TUC7 7L8L 5BED J4HC KBM7 MUXR';
+    const reader = new LightClientChainReader({
+      clock,
+      client: fakeClient({
+        getAccount: async () => ({ type: 'htlc', balance: 10_999_992_000, sender: funder }),
+      }),
+    });
+    const read = await reader.getAccountByAddress('NQ34 HE38 9QV5 C1SL HR2N 0V7P C6BJ EFTL DA0E');
+    expect(read.data.type).toBe('htlc');
+    expect(read.data.sender).toBe(funder);
+  });
+
   it('getTransactionsByAddress: retries, then reports unavailable — never an empty list', async () => {
     const attempts = vi.fn(async () => {
       throw new Error("Outbound error: Couldn't send request");

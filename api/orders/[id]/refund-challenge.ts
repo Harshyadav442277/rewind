@@ -35,6 +35,14 @@ export default withErrors(async (req: ApiRequest, res: ApiResponse) => {
   const result = await issueRefundChallenge(deps, id);
   if (!result.ok) {
     if (result.reason === 'not_found') return sendError(res, 'not_found', 'Order not found.');
+    if (result.reason === 'unrefundable_payer') {
+      return sendError(
+        res,
+        'conflict',
+        'Rewind cannot find a wallet on chain that this payment can be refunded to.',
+        result.detail,
+      );
+    }
     if (result.reason === 'already_requested') {
       return sendError(
         res,
@@ -57,6 +65,6 @@ export default withErrors(async (req: ApiRequest, res: ApiResponse) => {
     order: order ? orderView(order) : null,
     // Shown next to the Sign button so the buyer knows what they are approving.
     explain:
-      'Signing requests the refund. It can only go back to the address that paid. It moves no NIM and costs no fee.',
+      'Signing proves you control the wallet the refund goes back to. It moves no NIM and costs no fee.',
   });
 });

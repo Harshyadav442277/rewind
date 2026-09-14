@@ -126,6 +126,8 @@ export interface PlainTransactionDetailsLike {
 export interface PlainAccountLike {
   type?: string | number;
   balance?: number;
+  /** `PlainHtlcAccount` only: the address that funded the contract. */
+  sender?: string;
 }
 
 /**
@@ -345,6 +347,7 @@ export class LightClientChainReader implements ChainReader {
       address,
       balance: account.balance,
       ...(account.type === undefined ? {} : { type: account.type }),
+      ...(typeof account.sender === 'string' ? { sender: account.sender } : {}),
     });
   }
 
