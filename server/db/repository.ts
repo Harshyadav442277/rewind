@@ -20,8 +20,8 @@ import type {
   Order,
   RefundChallenge,
   RefundExecution,
-} from '../domain/types';
-import type { OrderState } from '../domain/states';
+} from '../domain/types.js';
+import type { OrderState } from '../domain/states.js';
 
 export const CONSTRAINTS = {
   orderId: 'orders_pkey',

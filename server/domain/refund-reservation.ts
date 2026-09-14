@@ -22,13 +22,13 @@
  *      returning a hash means the network accepted the bytes, nothing more.
  */
 
-import { buildChallenge, checkChallengeAgainstOrder, parseChallenge } from './challenge';
-import { checkTreasuryCaps, describeCapDenial, type CapDenialReason } from './demo-treasury';
-import type { DomainDeps } from './deps';
-import { addressEquals, buildReference, normalizeAddress, normalizeTxHash } from './nimiq';
-import type { Order, RefundChallenge, RefundExecution } from './types';
-import { describeMismatch, verifyRefund, type Mismatch } from './verify';
-import { UniqueViolationError } from '../db/repository';
+import { buildChallenge, checkChallengeAgainstOrder, parseChallenge } from './challenge.js';
+import { checkTreasuryCaps, describeCapDenial, type CapDenialReason } from './demo-treasury.js';
+import type { DomainDeps } from './deps.js';
+import { addressEquals, buildReference, normalizeAddress, normalizeTxHash } from './nimiq.js';
+import type { Order, RefundChallenge, RefundExecution } from './types.js';
+import { describeMismatch, verifyRefund, type Mismatch } from './verify.js';
+import { UniqueViolationError } from '../db/repository.js';
 
 // ---------------------------------------------------------------------------
 // 1. Issue the challenge

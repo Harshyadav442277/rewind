@@ -9,11 +9,11 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { RpcChainReader, isTransactionNotFound, RpcError, type FetchLike } from './rpc-chain-reader';
-import { CachingChainReader } from '../domain/chain-cache';
-import { ChainUnavailableError } from '../domain/ports';
-import { ManualClock } from '../domain/fakes';
-import { parseReferenceFromHex, utf8ToHex } from '../domain/nimiq';
+import { RpcChainReader, isTransactionNotFound, RpcError, type FetchLike } from './rpc-chain-reader.js';
+import { CachingChainReader } from '../domain/chain-cache.js';
+import { ChainUnavailableError } from '../domain/ports.js';
+import { ManualClock } from '../domain/fakes.js';
+import { parseReferenceFromHex, utf8ToHex } from '../domain/nimiq.js';
 
 const ENDPOINT = 'https://rpc.example.invalid';
 

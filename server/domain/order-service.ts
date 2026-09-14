@@ -14,12 +14,12 @@ import {
   normalizeTxHash,
   parseReferenceFromHex,
   type RpcTransaction,
-} from './nimiq';
-import { describeMismatch, verifyPayment, type Mismatch } from './verify';
-import type { DomainDeps } from './deps';
-import { ChainUnavailableError, type ChainRead } from './ports';
-import type { Order, RefundSource } from './types';
-import { UniqueViolationError } from '../db/repository';
+} from './nimiq.js';
+import { describeMismatch, verifyPayment, type Mismatch } from './verify.js';
+import type { DomainDeps } from './deps.js';
+import { ChainUnavailableError, type ChainRead } from './ports.js';
+import type { Order, RefundSource } from './types.js';
+import { UniqueViolationError } from '../db/repository.js';
 
 export interface CreateOrderInput {
   merchantId: string;

@@ -27,7 +27,7 @@ import type {
   SignatureVerification,
   SignatureVerifier,
   SignedMessageVariant,
-} from '../domain/ports';
+} from '../domain/ports.js';
 
 export const SIGN_MESSAGE_PREFIX = '\x16Nimiq Signed Message:\n';
 export const CONNECT_CHALLENGE_PREFIX = '\x19Nimiq Connect Challenge:\n';

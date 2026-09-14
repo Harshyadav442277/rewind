@@ -1,4 +1,4 @@
-import { getDeps } from '../../_lib/deps';
+import { getDeps } from '../../_lib/deps.js';
 import {
   clientIp,
   methodNotAllowed,
@@ -9,10 +9,10 @@ import {
   withErrors,
   type ApiRequest,
   type ApiResponse,
-} from '../../_lib/http';
-import { DEFAULT_LIMITS, rateLimit } from '../../_lib/ratelimit';
-import { orderView } from '../../_lib/views';
-import { submitPaymentHint, verifyOrderPayment } from '../../../server/domain/order-service';
+} from '../../_lib/http.js';
+import { DEFAULT_LIMITS, rateLimit } from '../../_lib/ratelimit.js';
+import { orderView } from '../../_lib/views.js';
+import { submitPaymentHint, verifyOrderPayment } from '../../../server/domain/order-service.js';
 
 /**
  * POST /api/orders/:id/payment   { txHash }

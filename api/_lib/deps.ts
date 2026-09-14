@@ -7,12 +7,12 @@
  * must set REWIND_REPO=postgres and REWIND_CHAIN=rpc, and both of those paths are UNTESTED.
  */
 
-import { InMemoryRepository } from '../../server/db/memory';
-import { PostgresRepository } from '../../server/db/postgres';
-import type { Repository } from '../../server/db/repository';
-import { CachingChainReader } from '../../server/domain/chain-cache';
-import { DEFAULT_CONFIG, type DomainConfig, type DomainDeps } from '../../server/domain/deps';
-import { DEFAULT_TREASURY_CAPS } from '../../server/domain/demo-treasury';
+import { InMemoryRepository } from '../../server/db/memory.js';
+import { PostgresRepository } from '../../server/db/postgres.js';
+import type { Repository } from '../../server/db/repository.js';
+import { CachingChainReader } from '../../server/domain/chain-cache.js';
+import { DEFAULT_CONFIG, type DomainConfig, type DomainDeps } from '../../server/domain/deps.js';
+import { DEFAULT_TREASURY_CAPS } from '../../server/domain/demo-treasury.js';
 import {
   FakeChain,
   FakeChainReader,
@@ -21,7 +21,7 @@ import {
   FakeTxBroadcaster,
   cryptoRandom,
   systemClock,
-} from '../../server/domain/fakes';
+} from '../../server/domain/fakes.js';
 import type {
   ChainReader,
   PreparedRefundTx,
@@ -29,15 +29,15 @@ import type {
   RefundTxRequest,
   SignatureVerifier,
   TxBroadcaster,
-} from '../../server/domain/ports';
-import { RpcChainReader } from '../../server/chain/rpc-chain-reader';
+} from '../../server/domain/ports.js';
+import { RpcChainReader } from '../../server/chain/rpc-chain-reader.js';
 import {
   defaultNetworkId,
   networkNameFromEnv,
   LightClientChainReader,
   type NetworkName,
-} from '../../server/chain/light-client-chain-reader';
-import type { Merchant } from '../../server/domain/types';
+} from '../../server/chain/light-client-chain-reader.js';
+import type { Merchant } from '../../server/domain/types.js';
 
 const env = (name: string, fallback = ''): string => process.env[name] ?? fallback;
 
@@ -90,7 +90,7 @@ class LazyNimiqSignatureVerifier implements SignatureVerifier {
 
   async verify(message: string, publicKeyHex: string, signatureHex: string) {
     if (!this.impl) {
-      const { NimiqSignatureVerifier } = await import('../../server/crypto/nimiq-signature-verifier');
+      const { NimiqSignatureVerifier } = await import('../../server/crypto/nimiq-signature-verifier.js');
       this.impl = new NimiqSignatureVerifier();
     }
     return this.impl.verify(message, publicKeyHex, signatureHex);
@@ -102,7 +102,7 @@ class LazyTreasuryTxBuilder implements RefundTxBuilder {
 
   async prepare(request: RefundTxRequest): Promise<PreparedRefundTx> {
     if (!this.impl) {
-      const { TreasuryTxBuilder } = await import('../../server/chain/treasury-broadcaster');
+      const { TreasuryTxBuilder } = await import('../../server/chain/treasury-broadcaster.js');
       this.impl = TreasuryTxBuilder.fromEnv();
     }
     return this.impl.prepare(request);
@@ -120,7 +120,7 @@ class LazyLightClientBroadcaster implements TxBroadcaster {
 
   async broadcast(serializedTx: string): Promise<{ hash: string }> {
     if (!this.impl) {
-      const { LightClientTxBroadcaster } = await import('../../server/chain/light-client-broadcaster');
+      const { LightClientTxBroadcaster } = await import('../../server/chain/light-client-broadcaster.js');
       this.impl = new LightClientTxBroadcaster({
         networkId: this.networkId,
         network: NETWORK_NAME,
@@ -140,7 +140,7 @@ class LazyTxBroadcaster implements TxBroadcaster {
 
   async broadcast(serializedTx: string): Promise<{ hash: string }> {
     if (!this.impl) {
-      const { RpcTxBroadcaster } = await import('../../server/chain/treasury-broadcaster');
+      const { RpcTxBroadcaster } = await import('../../server/chain/treasury-broadcaster.js');
       this.impl = new RpcTxBroadcaster({
         endpoint: this.endpoint,
         authorization: this.authorization,

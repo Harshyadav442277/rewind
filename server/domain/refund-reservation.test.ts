@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import type { DomainDeps } from './deps';
-import type { ChainReader } from './ports';
-import { fakeKeyFor, fakeSign } from './fakes';
+import type { DomainDeps } from './deps.js';
+import type { ChainReader } from './ports.js';
+import { fakeKeyFor, fakeSign } from './fakes.js';
 import {
   executeTreasuryRefund,
   issueRefundChallenge,
@@ -11,7 +11,7 @@ import {
   resumeUnsettledRefunds,
   settleRefund,
   submitSignedRefundRequest,
-} from './refund-reservation';
+} from './refund-reservation.js';
 import {
   OTHER,
   createPaidOrder,
@@ -20,7 +20,7 @@ import {
   orderAwaitingApproval,
   signRefundRequest,
   type Harness,
-} from './test-helpers';
+} from './test-helpers.js';
 
 /** A new deps object over the same storage and the same chain: a process restart. */
 function restart(h: Harness): DomainDeps {

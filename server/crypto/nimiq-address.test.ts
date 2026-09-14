@@ -6,8 +6,8 @@
 
 import { describe, expect, it } from 'vitest';
 import { Address, KeyPair } from '@nimiq/core';
-import { parseAddress, requireAddress } from './nimiq-address';
-import { hasValidCheckDigits, isValidAddress, normalizeAddress } from '../domain/nimiq';
+import { parseAddress, requireAddress } from './nimiq-address.js';
+import { hasValidCheckDigits, isValidAddress, normalizeAddress } from '../domain/nimiq.js';
 
 const KNOWN_A = 'NQ14 E6Y2 Y9CC 8GVY 1163 VBMJ YP54 QACN V4JD';
 const KNOWN_B = 'NQ87 T28S MDL1 TUC7 7L8L 5BED J4HC KBM7 MUXR';

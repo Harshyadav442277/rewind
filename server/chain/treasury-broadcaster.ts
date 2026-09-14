@@ -35,10 +35,10 @@ import {
   Transaction,
   TransactionBuilder,
 } from '@nimiq/core';
-import { DATA_MAX_BYTES, utf8ByteLength } from '../domain/nimiq';
-import { ChainUnavailableError, type PreparedRefundTx, type RefundTxBuilder, type RefundTxRequest, type TxBroadcaster } from '../domain/ports';
-import { requireAddress } from '../crypto/nimiq-address';
-import type { FetchLike } from './rpc-chain-reader';
+import { DATA_MAX_BYTES, utf8ByteLength } from '../domain/nimiq.js';
+import { ChainUnavailableError, type PreparedRefundTx, type RefundTxBuilder, type RefundTxRequest, type TxBroadcaster } from '../domain/ports.js';
+import { requireAddress } from '../crypto/nimiq-address.js';
+import type { FetchLike } from './rpc-chain-reader.js';
 
 /** Mainnet Albatross. Observed two independent ways in spikes/server-tx, 2026-09-13. */
 export const MAINNET_NETWORK_ID = 24;

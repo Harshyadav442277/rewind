@@ -1,4 +1,4 @@
-import { getDeps, DEMO_MERCHANT_ID } from './_lib/deps';
+import { getDeps, DEMO_MERCHANT_ID } from './_lib/deps.js';
 import {
   clientIp,
   methodNotAllowed,
@@ -8,10 +8,10 @@ import {
   withErrors,
   type ApiRequest,
   type ApiResponse,
-} from './_lib/http';
-import { DEFAULT_LIMITS, rateLimit } from './_lib/ratelimit';
-import { orderView } from './_lib/views';
-import { createOrder } from '../server/domain/order-service';
+} from './_lib/http.js';
+import { DEFAULT_LIMITS, rateLimit } from './_lib/ratelimit.js';
+import { orderView } from './_lib/views.js';
+import { createOrder } from '../server/domain/order-service.js';
 
 /** The single Demo Store item. 0.01 NIM = 1000 Luna. */
 export const DEMO_ITEM = { label: 'Refund Test — 0.01 NIM', amountLuna: 1_000 } as const;

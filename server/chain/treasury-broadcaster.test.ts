@@ -13,10 +13,10 @@ import {
   MAINNET_NETWORK_ID,
   RpcTxBroadcaster,
   TreasuryTxBuilder,
-} from './treasury-broadcaster';
-import type { FetchLike } from './rpc-chain-reader';
-import { ChainUnavailableError } from '../domain/ports';
-import { buildReference } from '../domain/nimiq';
+} from './treasury-broadcaster.js';
+import type { FetchLike } from './rpc-chain-reader.js';
+import { ChainUnavailableError } from '../domain/ports.js';
+import { buildReference } from '../domain/nimiq.js';
 
 /** In-memory only. Never persisted, never funded, never used twice. */
 function ephemeralKeyHex(): string {

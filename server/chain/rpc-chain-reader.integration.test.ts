@@ -14,9 +14,9 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { RpcChainReader } from './rpc-chain-reader';
-import { systemClock } from '../domain/fakes';
-import { isValidAddress } from '../domain/nimiq';
+import { RpcChainReader } from './rpc-chain-reader.js';
+import { systemClock } from '../domain/fakes.js';
+import { isValidAddress } from '../domain/nimiq.js';
 
 const RUN = process.env.RUN_RPC_TESTS === '1';
 const ENDPOINT = process.env.NIMIQ_RPC_URL ?? 'https://rpc.nimiqwatch.com';

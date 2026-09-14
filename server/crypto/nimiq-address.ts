@@ -13,7 +13,7 @@
  */
 
 import { Address } from '@nimiq/core';
-import { isValidAddress, normalizeAddress } from '../domain/nimiq';
+import { isValidAddress, normalizeAddress } from '../domain/nimiq.js';
 
 export type AddressParse =
   | { ok: true; address: string }

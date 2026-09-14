@@ -1,6 +1,6 @@
-import type { Repository } from '../db/repository';
-import { DEFAULT_TREASURY_CAPS, type TreasuryCaps } from './demo-treasury';
-import { DEFAULT_CHALLENGE_TTL_SEC } from './challenge';
+import type { Repository } from '../db/repository.js';
+import { DEFAULT_TREASURY_CAPS, type TreasuryCaps } from './demo-treasury.js';
+import { DEFAULT_CHALLENGE_TTL_SEC } from './challenge.js';
 import type {
   ChainReader,
   Clock,
@@ -8,7 +8,7 @@ import type {
   RefundTxBuilder,
   SignatureVerifier,
   TxBroadcaster,
-} from './ports';
+} from './ports.js';
 
 export interface DomainConfig {
   /**

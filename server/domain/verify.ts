@@ -12,7 +12,7 @@ import {
   buildReference,
   parseReferenceFromHex,
   type RpcTransaction,
-} from './nimiq';
+} from './nimiq.js';
 
 export type MismatchKind =
   | 'not_included'

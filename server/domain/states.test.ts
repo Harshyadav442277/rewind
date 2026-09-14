@@ -6,7 +6,7 @@ import {
   canTransition,
   checkInvariants,
   isTerminal,
-} from './states';
+} from './states.js';
 
 describe('state machine invariants', () => {
   it('has no invariant violations', () => {

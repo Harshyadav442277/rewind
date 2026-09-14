@@ -13,8 +13,8 @@
  */
 
 import { createHash } from 'node:crypto';
-import { UniqueViolationError } from '../../server/db/repository';
-import type { DomainDeps } from '../../server/domain/deps';
+import { UniqueViolationError } from '../../server/db/repository.js';
+import type { DomainDeps } from '../../server/domain/deps.js';
 import {
   buildMerchantChallenge,
   checkMerchantChallenge,
@@ -23,9 +23,9 @@ import {
   parseMerchantChallenge,
   type MerchantAction,
   type MerchantAuthResult,
-} from '../../server/domain/merchant-auth';
-import { addressEquals } from '../../server/domain/nimiq';
-import type { Merchant, MerchantNonce } from '../../server/domain/types';
+} from '../../server/domain/merchant-auth.js';
+import { addressEquals } from '../../server/domain/nimiq.js';
+import type { Merchant, MerchantNonce } from '../../server/domain/types.js';
 
 export interface MerchantAuthEnv {
   REWIND_MERCHANT_AUTH?: string | undefined;

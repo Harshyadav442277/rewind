@@ -39,13 +39,13 @@
  * observed by the spike, not by this file.
  */
 
-import type { RpcAccount, RpcTransaction } from '../domain/nimiq';
+import type { RpcAccount, RpcTransaction } from '../domain/nimiq.js';
 import {
   ChainUnavailableError,
   type ChainRead,
   type ChainReader,
   type Clock,
-} from '../domain/ports';
+} from '../domain/ports.js';
 
 // ---------------------------------------------------------------------------
 // Networks and seeds

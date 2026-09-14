@@ -8,8 +8,8 @@
  * logic. They prove nothing at all about signatures, serialisation or the chain.
  */
 
-import type { RpcAccount, RpcTransaction } from './nimiq';
-import { normalizeAddress } from './nimiq';
+import type { RpcAccount, RpcTransaction } from './nimiq.js';
+import { normalizeAddress } from './nimiq.js';
 import type {
   ChainRead,
   ChainReader,
@@ -21,7 +21,7 @@ import type {
   SignatureVerification,
   SignatureVerifier,
   TxBroadcaster,
-} from './ports';
+} from './ports.js';
 
 // ---------------------------------------------------------------------------
 // Clock and randomness
