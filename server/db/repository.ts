@@ -62,6 +62,12 @@ export interface Repository {
   // -- merchants ------------------------------------------------------------
   getMerchant(id: string): Promise<Merchant | null>;
   listMerchants(): Promise<Merchant[]>;
+  /**
+   * Inserts a merchant, or renames an existing one. The address and the treasury flag of an
+   * existing row are never changed: a merchant id is derived from its address, so a different
+   * address is a different merchant.
+   */
+  upsertMerchant(merchant: Merchant): Promise<Merchant>;
 
   // -- orders ---------------------------------------------------------------
   createOrder(order: Order): Promise<Order>;

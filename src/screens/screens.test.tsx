@@ -43,6 +43,8 @@ const { apiMock, walletMock, FakeApiError } = vi.hoisted(() => {
       listMerchantRequests: vi.fn(),
       merchantChallenge: vi.fn(),
       merchantAction: vi.fn(),
+      registerMerchant: vi.fn(),
+      getMerchant: vi.fn(),
     },
     walletMock: {
       listAccounts: vi.fn(),
@@ -64,7 +66,8 @@ import { AUTO_APPROVE_DISCLOSURE, DemoStoreScreen } from './DemoStore';
 import { OrderScreen } from './Order';
 import { RefundScreen } from './Refund';
 import { REFUND_CLAIM, ReceiptScreen } from './Receipt';
-import { MerchantScreen } from './Merchant';
+import { MerchantScreen, REFUND_SENT_NOTE, SHARE_NOTE } from './Merchant';
+import { PAY_REFUND_LINE, PayScreen } from './Pay';
 
 // --- fixtures --------------------------------------------------------------
 
@@ -165,6 +168,8 @@ let root: Root;
 
 beforeEach(() => {
   vi.clearAllMocks();
+  window.localStorage.clear();
+  window.location.hash = '';
   walletMock.listAccounts.mockResolvedValue({ status: 'ok', value: ['NQ64 P4YR 0001'] });
   container = document.createElement('div');
   document.body.append(container);
@@ -222,6 +227,18 @@ async function click(button: HTMLButtonElement): Promise<void> {
     await Promise.resolve();
   });
 }
+
+/** Several macrotask turns, for chains of awaits that a single microtask does not cover. */
+async function settle(): Promise<void> {
+  for (let i = 0; i < 5; i += 1) {
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+  }
+}
+
+const hasButton = (label: RegExp): boolean =>
+  [...container.querySelectorAll('button')].some((b) => label.test(b.textContent ?? ''));
 
 // --- Demo Store -------------------------------------------------------------
 
@@ -338,6 +355,35 @@ describe('Order', () => {
     await render(<OrderScreen orderId={ORDER.id} />);
     expect(text()).toContain('node refused');
     expect(buttonWith('Start again at the Demo Store')).toBeTruthy();
+  });
+
+  it('tells the buyer of a shop order that it waits on the shop, once', async () => {
+    apiMock.getOrder.mockResolvedValue(
+      status(
+        { note: 'Waiting for the merchant to send the refund.' },
+        { state: 'REFUND_APPROVED', refundSource: 'MERCHANT_WALLET' },
+      ),
+    );
+    await render(<OrderScreen orderId={ORDER.id} />);
+    expect(byTestId('waiting-on-shop')?.textContent).toBe(
+      'Approved. Waiting for the shop to send the refund.',
+    );
+    expect(text()).not.toContain('Waiting for the merchant to send the refund.');
+  });
+
+  it('says a requested shop refund waits for approval, and says nothing for the Demo Store', async () => {
+    apiMock.getOrder.mockResolvedValue(
+      status({}, { state: 'REFUND_REQUESTED', refundSource: 'MERCHANT_WALLET' }),
+    );
+    await render(<OrderScreen orderId={ORDER.id} />);
+    expect(byTestId('waiting-on-shop')?.textContent).toBe(
+      'Waiting for the shop to approve the refund.',
+    );
+
+    apiMock.getOrder.mockResolvedValue(status({}, { state: 'REFUND_REQUESTED' }));
+    await render(<OrderScreen orderId="another0123456789" />);
+    await settle();
+    expect(byTestId('waiting-on-shop')).toBeNull();
   });
 });
 
@@ -489,81 +535,246 @@ describe('Receipt', () => {
   });
 });
 
-// --- Merchant ---------------------------------------------------------------
+// --- Your orders on this device ----------------------------------------------
 
-describe('Merchant', () => {
-  it('renders a canned example, badged, when nothing real is waiting', async () => {
-    apiMock.listMerchantRequests.mockResolvedValue({
-      requests: [],
-      scopedToMerchantId: null,
-      authenticated: false,
-    });
-    await render(<MerchantScreen />);
-    expect(text()).toContain('example');
-    expect(text()).toContain('Nothing real is waiting');
+describe('Your orders on this device', () => {
+  it('lists the orders this device remembers, newest first, with links to each', async () => {
+    apiMock.health.mockResolvedValue(HEALTH);
+    window.localStorage.setItem(
+      'rewind.orders',
+      JSON.stringify([
+        { id: 'order00000000002', label: 'Table 4', amountLuna: 2_500, createdAtMs: Date.now() },
+        { id: 'order00000000001', label: 'Refund Test', amountLuna: 1_000, createdAtMs: Date.now() },
+        { id: 42, label: 'malformed' },
+      ]),
+    );
+    await render(<DemoStoreScreen />);
+    const links = [...(byTestId('your-orders')?.querySelectorAll('a') ?? [])];
+    expect(links.map((a) => a.getAttribute('href'))).toEqual([
+      '#/order/order00000000002',
+      '#/order/order00000000001',
+    ]);
+    expect(links[0]?.textContent).toBe('Table 4');
+    expect(byTestId('your-orders')?.textContent).toContain('0.025 NIM');
+    expect(text()).not.toContain('malformed');
   });
 
-  it('creates an order with an amount and a reference, and shows a share link', async () => {
-    apiMock.listMerchantRequests.mockResolvedValue({
-      requests: [],
-      scopedToMerchantId: null,
-      authenticated: false,
+  it('is hidden when nothing is remembered', async () => {
+    apiMock.health.mockResolvedValue(HEALTH);
+    await render(<DemoStoreScreen />);
+    expect(text()).not.toContain('Your orders on this device');
+  });
+
+  it('records a new order, and still pays when storage throws on every access', async () => {
+    apiMock.health.mockResolvedValue(HEALTH);
+    apiMock.createOrder.mockResolvedValue({ order: ORDER });
+    walletMock.sendPayment.mockResolvedValue({
+      status: 'ok',
+      value: { raw: 'a'.repeat(64), kind: 'hash', txHash: 'a'.repeat(64) },
     });
-    apiMock.createOrder.mockResolvedValue({
-      order: { ...ORDER, itemLabel: 'table 4', amountLuna: 2_500, amountLabel: '0.025 NIM' },
+    apiMock.submitPayment.mockResolvedValue({ order: ORDER, status: 'waiting', note: null });
+
+    const blocked = vi.spyOn(window, 'localStorage', 'get').mockImplementation(() => {
+      throw new DOMException('The operation is insecure.', 'SecurityError');
     });
+    try {
+      expect(() => window.localStorage).toThrow('insecure');
+      await render(<DemoStoreScreen />);
+      expect(byTestId('your-orders')).toBeNull();
+      await click(buttonWith('Pay 0.01 NIM'));
+      await settle();
+      expect(apiMock.submitPayment).toHaveBeenCalledWith(ORDER.id, 'a'.repeat(64));
+      expect(window.location.hash).toBe(`#/order/${ORDER.id}`);
+    } finally {
+      blocked.mockRestore();
+    }
+
+    // With storage back, the next order is remembered.
+    act(() => root.unmount());
+    root = createRoot(container);
+    await render(<DemoStoreScreen />);
+    await click(buttonWith('Pay 0.01 NIM'));
+    await settle();
+    const stored = JSON.parse(window.localStorage.getItem('rewind.orders') ?? '[]') as Array<{
+      id: string;
+      label: string;
+      amountLuna: number;
+    }>;
+    expect(stored[0]).toMatchObject({ id: ORDER.id, label: ORDER.itemLabel, amountLuna: 1_000 });
+  });
+});
+
+// --- Payment links (merchant) --------------------------------------------------
+
+const SHOP = {
+  id: 'w-nq12shop0000000000000000000000000001',
+  name: 'Corner Coffee',
+  address: 'NQ12 SH0P 0000 0000 0000 0000 0000 0000 0001',
+};
+
+const REFUND_TO = 'NQ64 P4YR 0000 0000 0000 0000 0000 0000 0001';
+
+function saveShop(): void {
+  window.localStorage.setItem('rewind.merchant', JSON.stringify(SHOP));
+}
+
+function merchantChallengeFor(action: string, orderId?: string) {
+  return {
+    challenge: {
+      message: `REWIND_MERCHANT_V1\naction=${action}`,
+      expiresAtSec: Math.floor(Date.now() / 1000) + 120,
+      merchantAddress: SHOP.address,
+      action,
+      orderId: orderId ?? '0',
+      singleUse: action !== 'list',
+    },
+    required: true,
+    explain: '',
+  };
+}
+
+function shopRow(state: string, over: Partial<OrderView> = {}) {
+  const order: OrderView = {
+    ...ORDER,
+    state,
+    stateLabel: state,
+    merchantId: SHOP.id,
+    merchantAddress: SHOP.address,
+    itemLabel: 'Table 4',
+    refundSource: 'MERCHANT_WALLET',
+    refunderAddress: SHOP.address,
+    payerAddress: 'NQ00 HTLC 0000 0000 0000 0000 0000 0000 0009',
+    ...over,
+  };
+  return {
+    order,
+    signedRequest: { ...CHALLENGE, refundTo: REFUND_TO, signerAddress: REFUND_TO },
+    execution:
+      state === 'REFUND_REQUESTED'
+        ? null
+        : {
+            ...EXECUTION,
+            source: 'MERCHANT_WALLET',
+            refundTo: REFUND_TO,
+            amountLuna: 1_000,
+            refunderAddress: SHOP.address,
+            intendedTxHash: null,
+            broadcastAt: null,
+            refundTxHash: null,
+            refundExplorerUrl: null,
+            refundBlockNumber: null,
+            confirmedAt: null,
+          },
+  };
+}
+
+/** Saved shop, signed in, board loaded with `rows`. */
+async function renderSignedInBoard(rows: ReturnType<typeof shopRow>[]): Promise<void> {
+  saveShop();
+  apiMock.merchantChallenge.mockImplementation(async (_id: string, action: string, orderId?: string) =>
+    merchantChallengeFor(action, orderId),
+  );
+  walletMock.sign.mockResolvedValue({ status: 'ok', value: { publicKey: 'mm', signature: 'ss' } });
+  apiMock.listMerchantRequests.mockResolvedValue({
+    requests: rows,
+    scopedToMerchantId: SHOP.id,
+    authenticated: true,
+  });
+  await render(<MerchantScreen />);
+  await click(buttonWith('Sign in with wallet'));
+  await settle();
+}
+
+describe('Payment links', () => {
+  it('registers by signing the exact three-line text, then saves and shows the shop', async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(1_700_000_123_456);
+    walletMock.sign.mockResolvedValue({ status: 'ok', value: { publicKey: 'pk', signature: 'sig' } });
+    apiMock.registerMerchant.mockResolvedValue({ merchant: SHOP });
+
     await render(<MerchantScreen />);
+    expect(hasButton(/Acting as|Create order/)).toBe(false);
+    await type('input[aria-label="Shop name"]', '  Corner Coffee ');
+    await click(buttonWith('Create my payment link'));
+    await settle();
+    vi.mocked(Date.now).mockRestore();
 
-    await type('input[aria-label="Your reference"]', 'table 4');
-    await type('input[aria-label="Amount in Luna"]', '2500');
-    await click(buttonWith('Create order'));
-
-    expect(apiMock.createOrder).toHaveBeenCalledWith({
-      merchantId: 'demo-store',
-      amountLuna: 2_500,
-      reference: 'table 4',
+    const message = 'REWIND_MERCHANT_REGISTER_V1\nname=Corner Coffee\nissued=1700000123';
+    expect(walletMock.sign).toHaveBeenCalledWith(message);
+    expect(apiMock.registerMerchant).toHaveBeenCalledWith({
+      message,
+      publicKey: 'pk',
+      signature: 'sig',
     });
-    expect(byTestId('share-link')?.textContent).toContain(`#/order/${ORDER.id}`);
+    expect(JSON.parse(window.localStorage.getItem('rewind.merchant') ?? 'null')).toEqual(SHOP);
+    expect(text()).toContain('Corner Coffee');
+    expect(buttonWith('Use a different wallet')).toBeTruthy();
+    expect(container.querySelector('input[aria-label="Shop name"]')).toBeNull();
+  });
+
+  it('creates nothing when the registration signature is cancelled', async () => {
+    walletMock.sign.mockResolvedValue({ status: 'cancelled', message: 'no' });
+    await render(<MerchantScreen />);
+    await type('input[aria-label="Shop name"]', 'Corner Coffee');
+    await click(buttonWith('Create my payment link'));
+    await settle();
+    expect(apiMock.registerMerchant).not.toHaveBeenCalled();
+    expect(window.localStorage.getItem('rewind.merchant')).toBeNull();
+    expect(text()).toContain('No payment link was created');
+  });
+
+  it('forgets the saved shop on "Use a different wallet"', async () => {
+    saveShop();
+    await render(<MerchantScreen />);
+    await click(buttonWith('Use a different wallet'));
+    expect(window.localStorage.getItem('rewind.merchant')).toBeNull();
+    expect(buttonWith('Create my payment link')).toBeTruthy();
+  });
+
+  it('builds the exact link for 0.01 NIM and a label, and refuses an amount over 1 NIM', async () => {
+    saveShop();
+    await render(<MerchantScreen />);
+    // Defaults: 0.01 NIM, labelled with the shop name.
+    expect(byTestId('payment-link')?.textContent).toBe(
+      `${window.location.origin}/#/pay/${SHOP.id}?amount=1000&label=Corner%20Coffee`,
+    );
+
+    await type('input[aria-label="Label"]', 'Table 4 & a flat white');
+    expect(byTestId('payment-link')?.textContent).toBe(
+      `${window.location.origin}/#/pay/${SHOP.id}?amount=1000&label=${encodeURIComponent('Table 4 & a flat white')}`,
+    );
+    expect(text()).toContain(SHARE_NOTE);
+
+    await type('input[aria-label="Amount in NIM"]', '1.5');
+    expect(byTestId('payment-link')).toBeNull();
+    expect(byTestId('amount-problem')).toBeTruthy();
+
+    await type('input[aria-label="Amount in NIM"]', '0.123456');
+    expect(byTestId('payment-link')).toBeNull();
+  });
+
+  it('copies the link to the clipboard', async () => {
+    saveShop();
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    try {
+      await render(<MerchantScreen />);
+      await click(buttonWith('Copy link'));
+      expect(writeText).toHaveBeenCalledWith(byTestId('payment-link')?.textContent);
+      expect(text()).toContain('Copied.');
+    } finally {
+      Reflect.deleteProperty(navigator, 'clipboard');
+    }
   });
 
   it('signs the merchant challenge before approving, and sends the signature', async () => {
-    apiMock.listMerchantRequests.mockResolvedValue({
-      requests: [
-        {
-          order: { ...ORDER, state: 'REFUND_REQUESTED', stateLabel: 'Refund requested' },
-          signedRequest: null,
-          execution: null,
-        },
-      ],
-      scopedToMerchantId: 'demo-store',
-      authenticated: true,
-    });
-    apiMock.merchantChallenge.mockResolvedValue({
-      challenge: {
-        message: 'REWIND_MERCHANT_V1\naction=approve',
-        expiresAtSec: 1,
-        merchantAddress: 'NQ79',
-        action: 'approve',
-        orderId: ORDER.id,
-        singleUse: true,
-      },
-      required: true,
-      explain: '',
-    });
-    walletMock.sign.mockResolvedValue({
-      status: 'ok',
-      value: { publicKey: 'mm', signature: 'ss' },
-    });
-    apiMock.merchantAction.mockResolvedValue({
-      order: ORDER,
-      execution: null,
-      settleStatus: 'sent',
-    });
+    await renderSignedInBoard([shopRow('REFUND_REQUESTED')]);
+    apiMock.merchantAction.mockResolvedValue({ order: ORDER, execution: null });
 
-    await render(<MerchantScreen />);
+    expect(apiMock.merchantChallenge).toHaveBeenCalledWith(SHOP.id, 'list');
     await click(buttonWith('Approve'));
+    await settle();
 
-    expect(apiMock.merchantChallenge).toHaveBeenCalledWith('demo-store', 'approve', ORDER.id);
+    expect(apiMock.merchantChallenge).toHaveBeenCalledWith(SHOP.id, 'approve', ORDER.id);
     expect(apiMock.merchantAction).toHaveBeenCalledWith(ORDER.id, 'approve', {
       message: 'REWIND_MERCHANT_V1\naction=approve',
       publicKey: 'mm',
@@ -572,35 +783,149 @@ describe('Merchant', () => {
   });
 
   it('does nothing at all when the merchant cancels the approval signature', async () => {
-    apiMock.listMerchantRequests.mockResolvedValue({
-      requests: [
-        {
-          order: { ...ORDER, state: 'REFUND_REQUESTED', stateLabel: 'Refund requested' },
-          signedRequest: null,
-          execution: null,
-        },
-      ],
-      scopedToMerchantId: 'demo-store',
-      authenticated: true,
-    });
-    apiMock.merchantChallenge.mockResolvedValue({
-      challenge: {
-        message: 'REWIND_MERCHANT_V1\naction=approve',
-        expiresAtSec: 1,
-        merchantAddress: 'NQ79',
-        action: 'approve',
-        orderId: ORDER.id,
-        singleUse: true,
-      },
-      required: true,
-      explain: '',
-    });
+    await renderSignedInBoard([shopRow('REFUND_REQUESTED')]);
     walletMock.sign.mockResolvedValue({ status: 'cancelled', message: 'no' });
-
-    await render(<MerchantScreen />);
     await click(buttonWith('Approve'));
-
+    await settle();
     expect(apiMock.merchantAction).not.toHaveBeenCalled();
     expect(text()).toContain('cancelled the approve signature');
   });
+
+  it('sends an approved refund from the wallet to refundTo with the RW1:R reference', async () => {
+    await renderSignedInBoard([shopRow('REFUND_APPROVED')]);
+    walletMock.sendPayment.mockResolvedValue({
+      status: 'ok',
+      value: { raw: '0100ab', kind: 'serialized', txHash: null },
+    });
+
+    // The destination shown is the execution's, not the paying HTLC.
+    expect(text()).toContain('Refund goes to');
+    expect(text()).not.toContain('NQ00 HTLC');
+    await click(buttonWith('Send refund'));
+    await settle();
+
+    expect(walletMock.sendPayment).toHaveBeenCalledWith({
+      recipient: REFUND_TO,
+      value: 1_000,
+      data: `RW1:R:${ORDER.id}`,
+    });
+    // The server finds the refund by its reference; nothing is reported back.
+    expect(apiMock.merchantAction).not.toHaveBeenCalled();
+    expect(text()).toContain(REFUND_SENT_NOTE);
+    // A second tap cannot send it twice while the chain catches up.
+    expect(buttonWith('Sent. Waiting for the chain').disabled).toBe(true);
+  });
+
+  it('says nothing was sent when the refund wallet dialog is cancelled', async () => {
+    await renderSignedInBoard([shopRow('REFUND_APPROVED')]);
+    walletMock.sendPayment.mockResolvedValue({ status: 'cancelled', message: 'no' });
+    await click(buttonWith('Send refund'));
+    await settle();
+    expect(text()).toContain('nothing was sent');
+    expect(buttonWith('Send refund').disabled).toBe(false);
+  });
+
+  it('shows settled rows with their state and a receipt link, and no actions', async () => {
+    await renderSignedInBoard([shopRow('REFUNDED', { stateLabel: 'Refund verified on chain' })]);
+    expect(text()).toContain('Refund verified on chain');
+    const receipt = byTestId(`refund-row-${ORDER.id}`)?.querySelector('a');
+    expect(receipt?.getAttribute('href')).toBe(`#/receipt/${ORDER.id}`);
+    expect(hasButton(/Approve|Send refund/)).toBe(false);
+  });
 });
+
+// --- Pay (payment link) --------------------------------------------------------
+
+describe('Pay', () => {
+  const SHOP_ORDER: OrderView = {
+    ...ORDER,
+    id: 'shoporder0123456',
+    merchantId: SHOP.id,
+    merchantAddress: SHOP.address,
+    itemLabel: 'Table 4',
+    amountLuna: 2_500,
+    amountLabel: '0.025 NIM',
+    refundSource: 'MERCHANT_WALLET',
+    paymentReference: 'RW1:P:shoporder0123456',
+  };
+
+  it('shows the shop, where the NIM goes and the refund line, then creates and pays the order', async () => {
+    apiMock.getMerchant.mockResolvedValue({ merchant: { ...SHOP, isDemoStore: false } });
+    apiMock.createOrder.mockResolvedValue({ order: SHOP_ORDER });
+    walletMock.sendPayment.mockResolvedValue({
+      status: 'ok',
+      value: { raw: 'a'.repeat(64), kind: 'hash', txHash: 'a'.repeat(64) },
+    });
+    apiMock.submitPayment.mockResolvedValue({ order: SHOP_ORDER, status: 'waiting', note: null });
+
+    await render(<PayScreen merchantId={SHOP.id} amountLuna={2_500} label="Table 4" />);
+    expect(apiMock.getMerchant).toHaveBeenCalledWith(SHOP.id);
+    expect(text()).toContain('Corner Coffee');
+    expect(text()).toContain('0.025 NIM');
+    expect(text()).toContain('Table 4');
+    expect(byTestId('pay-refund-line')?.textContent).toBe(PAY_REFUND_LINE);
+
+    await click(buttonWith('Pay 0.025 NIM'));
+    await settle();
+
+    expect(apiMock.createOrder).toHaveBeenCalledWith({
+      merchantId: SHOP.id,
+      amountLuna: 2_500,
+      reference: 'Table 4',
+    });
+    expect(walletMock.sendPayment).toHaveBeenCalledWith({
+      recipient: SHOP.address,
+      value: 2_500,
+      data: 'RW1:P:shoporder0123456',
+    });
+    expect(apiMock.submitPayment).toHaveBeenCalledWith(SHOP_ORDER.id, 'a'.repeat(64));
+    expect(window.location.hash).toBe(`#/order/${SHOP_ORDER.id}`);
+    expect(window.localStorage.getItem('rewind.orders')).toContain(SHOP_ORDER.id);
+  });
+
+  it('uses the shop name as the reference when the link has no label', async () => {
+    apiMock.getMerchant.mockResolvedValue({ merchant: { ...SHOP, isDemoStore: false } });
+    apiMock.createOrder.mockResolvedValue({ order: SHOP_ORDER });
+    walletMock.sendPayment.mockResolvedValue({ status: 'cancelled', message: 'no' });
+
+    await render(<PayScreen merchantId={SHOP.id} amountLuna={1_000} label={null} />);
+    await click(buttonWith('Pay 0.01 NIM'));
+    await settle();
+
+    expect(apiMock.createOrder).toHaveBeenCalledWith({
+      merchantId: SHOP.id,
+      amountLuna: 1_000,
+      reference: 'Corner Coffee',
+    });
+    expect(byTestId('cancelled-banner')?.textContent).toContain('nothing was sent');
+    expect(apiMock.submitPayment).not.toHaveBeenCalled();
+  });
+
+  it.each([null, 0, 100_001])('refuses a link with amount %s: an error and no Pay button', async (amount) => {
+    apiMock.getMerchant.mockResolvedValue({ merchant: { ...SHOP, isDemoStore: false } });
+    await render(<PayScreen merchantId={SHOP.id} amountLuna={amount} label={null} />);
+    expect(byTestId('pay-link-error')?.textContent).toContain('no valid amount');
+    expect(hasButton(/^Pay /)).toBe(false);
+  });
+
+  it('refuses a link to an unknown shop: the API message and no Pay button', async () => {
+    apiMock.getMerchant.mockRejectedValue(
+      new FakeApiError('not_found', 'This payment link does not belong to a Rewind merchant.'),
+    );
+    await render(<PayScreen merchantId="w-nobody" amountLuna={1_000} label={null} />);
+    expect(byTestId('pay-merchant-error')?.textContent).toBe(
+      'This payment link does not belong to a Rewind merchant.',
+    );
+    expect(hasButton(/^Pay /)).toBe(false);
+  });
+
+  it('sends a link to the Demo Store to the Demo Store screen', async () => {
+    apiMock.getMerchant.mockResolvedValue({
+      merchant: { id: 'demo-store', name: 'Demo Store', address: SHOP.address, isDemoStore: true },
+    });
+    await render(<PayScreen merchantId="demo-store" amountLuna={1_000} label={null} />);
+    expect(window.location.hash).toBe('#/store');
+    expect(hasButton(/^Pay /)).toBe(false);
+  });
+});
+

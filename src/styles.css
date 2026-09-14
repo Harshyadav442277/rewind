@@ -146,6 +146,20 @@ body {
   cursor: default;
 }
 
+a.btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+/* An inline link that is still a 44px tap target. */
+.tap-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+}
+
 .btn-primary {
   background: var(--accent);
   color: var(--accent-text);
