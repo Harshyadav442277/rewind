@@ -160,11 +160,7 @@ export function DemoStoreScreen() {
             Refresh status
           </button>
         </div>
-      ) : (
-        <button className="btn" onClick={() => navigate({ name: 'merchant' })}>
-          I am a merchant
-        </button>
-      )}
+      ) : null}
 
       <Card title="Status">
         <dl style={{ margin: 0 }}>
