@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, type HealthView } from '../api';
-import { navigate } from '../App';
+import { hashFor, navigate } from '../App';
 import { Banner, Card, Kv, Mono, timeAgo } from '../components/ui';
+import { formatNim, useOrderPayment } from '../pay';
+import { readOrders } from '../storage';
 import { getWallet, shortAddress } from '../wallet';
 
 const ITEM = { label: 'Refund Test — 0.01 NIM', amountLuna: 1_000 };
@@ -14,17 +16,11 @@ const ITEM = { label: 'Refund Test — 0.01 NIM', amountLuna: 1_000 };
 export const AUTO_APPROVE_DISCLOSURE =
   'Demo Store automatically approves valid 0.01 NIM refund requests so you can test the complete flow without another person';
 
-type Phase = 'idle' | 'working' | 'cancelled' | 'error';
-
 export function DemoStoreScreen() {
-  const [phase, setPhase] = useState<Phase>('idle');
-  const [error, setError] = useState<string | null>(null);
-  const [step, setStep] = useState<string | null>(null);
+  const { phase, error, step, unpaidOrderId, busy, pay } = useOrderPayment();
   const [health, setHealth] = useState<HealthView | null>(null);
   const [healthError, setHealthError] = useState<string | null>(null);
   const [payer, setPayer] = useState<string | null>(null);
-  /** An order that exists but was never paid, because the wallet dialog was cancelled. */
-  const [unpaidOrderId, setUnpaidOrderId] = useState<string | null>(null);
 
   const loadHealth = useCallback(async () => {
     try {
@@ -53,50 +49,6 @@ export function DemoStoreScreen() {
   }, []);
 
   const paused = health?.demoPaused ?? false;
-  const busy = phase === 'working';
-
-  async function pay() {
-    setPhase('working');
-    setError(null);
-    setUnpaidOrderId(null);
-    try {
-      setStep('Creating the order…');
-      const { order } = await api.createOrder();
-      setUnpaidOrderId(order.id);
-
-      setStep('Waiting for your wallet…');
-      // The reference is what ties this transfer to this order on chain. 64 byte limit.
-      const sent = await getWallet().sendPayment({
-        recipient: order.merchantAddress,
-        value: order.amountLuna,
-        data: order.paymentReference,
-      });
-
-      if (sent.status === 'cancelled') {
-        setPhase('cancelled');
-        setStep(null);
-        return;
-      }
-      if (sent.status === 'error') {
-        setError(sent.message);
-        setPhase('error');
-        setStep(null);
-        return;
-      }
-
-      setStep('Checking the chain…');
-      // Only a real hash is a usable pointer. A serialised transaction is not, and the
-      // server then finds the payment by scanning the merchant address for the reference.
-      await api.submitPayment(order.id, sent.value.txHash);
-      navigate({ name: 'order', id: order.id });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-      setPhase('error');
-    } finally {
-      setStep(null);
-      setPhase((current) => (current === 'working' ? 'idle' : current));
-    }
-  }
 
   return (
     <main className="screen">
@@ -188,6 +140,36 @@ export function DemoStoreScreen() {
           <Kv label="Floor">{health?.treasury.floorLabel ?? '—'}</Kv>
         </dl>
       </Card>
+
+      <YourOrders />
     </main>
+  );
+}
+
+/**
+ * Orders this device created, from the Demo Store or a payment link, so a buyer can get back
+ * to one without keeping the tab open. Read once per visit; hidden when there are none or
+ * when storage cannot be read at all.
+ */
+export function YourOrders() {
+  const [orders] = useState(readOrders);
+  if (orders.length === 0) return null;
+  return (
+    <Card title="Your orders on this device">
+      <p className="muted">Remembered by this browser only. The order page shows what the chain says.</p>
+      <ul style={{ listStyle: 'none', margin: 0, padding: 0 }} data-testid="your-orders">
+        {orders.map((order) => (
+          <li key={order.id} className="kv">
+            <a className="tap-link" href={hashFor({ name: 'order', id: order.id })}>
+              {order.label}
+            </a>
+            <span>
+              {formatNim(order.amountLuna)}
+              <span className="muted"> · {timeAgo(order.createdAtMs)}</span>
+            </span>
+          </li>
+        ))}
+      </ul>
+    </Card>
   );
 }

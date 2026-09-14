@@ -283,6 +283,20 @@ export class PostgresRepository implements Repository {
     return rows.map(toMerchant);
   }
 
+  async upsertMerchant(merchant: Merchant): Promise<Merchant> {
+    const sql = this.sql;
+    const rows = await this.rows(
+      () => sql`
+        INSERT INTO merchants (id, name, address, allow_treasury_refund)
+        VALUES (${merchant.id}, ${merchant.name}, ${merchant.address}, ${merchant.allowTreasuryRefund})
+        ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name
+        RETURNING id, name, address, allow_treasury_refund`,
+    );
+    const row = rows[0];
+    if (!row) throw new Error('upsertMerchant returned no row');
+    return toMerchant(row);
+  }
+
   // -- orders ---------------------------------------------------------------
 
   async createOrder(order: Order): Promise<Order> {

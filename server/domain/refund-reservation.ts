@@ -25,7 +25,13 @@
 import { buildChallenge, checkChallengeAgainstOrder, parseChallenge } from './challenge.js';
 import { checkTreasuryCaps, describeCapDenial, type CapDenialReason } from './demo-treasury.js';
 import type { DomainDeps } from './deps.js';
-import { addressEquals, buildReference, normalizeAddress, normalizeTxHash } from './nimiq.js';
+import {
+  addressEquals,
+  buildReference,
+  normalizeAddress,
+  normalizeTxHash,
+  parseReferenceFromHex,
+} from './nimiq.js';
 import type { Order, RefundChallenge, RefundExecution } from './types.js';
 import { describeMismatch, verifyRefund, type Mismatch } from './verify.js';
 import { UniqueViolationError } from '../db/repository.js';
@@ -612,7 +618,27 @@ export async function settleRefund(deps: DomainDeps, orderId: string): Promise<S
   if (execution.failureReason !== null) return { status: 'failed', order, execution };
 
   const candidate = execution.refundTxHash ?? execution.intendedTxHash;
-  if (candidate === null) return { status: 'nothing_to_check', order, execution };
+  if (candidate === null) {
+    if (execution.source !== 'MERCHANT_WALLET' || order.state !== 'REFUND_APPROVED') {
+      return { status: 'nothing_to_check', order, execution };
+    }
+    // The merchant sends the refund from Nimiq Pay, which gives the app no dependable hash,
+    // so the refund is found on chain by its reference instead.
+    const found = await findMerchantRefund(deps, order.id, execution);
+    if (found.data === null) {
+      return {
+        status: 'pending',
+        order,
+        execution,
+        message: 'Waiting for the merchant to send the refund.',
+        chainFetchedAtMs: found.fetchedAtMs,
+      };
+    }
+    const recorded = await recordMerchantRefundBroadcast(deps, order.id, found.data);
+    if (!recorded.ok) return { status: 'pending', order, execution, message: recorded.detail };
+    // Recorded, so the execution now carries a hash and this cannot recurse again.
+    return settleRefund(deps, orderId);
+  }
 
   const read = await deps.chain.getTransactionByHash(candidate);
   const nowMs = deps.clock.nowMs();
@@ -645,7 +671,9 @@ export async function settleRefund(deps: DomainDeps, orderId: string): Promise<S
       amountLuna: execution.amountLuna,
       networkId: order.networkId,
       minConfirmations: deps.config.minConfirmations,
-      expectedSender: execution.refunderAddress,
+      expectedSender: (await isRefundSender(deps, read.data.from, execution.refunderAddress))
+        ? read.data.from
+        : execution.refunderAddress,
     },
     read.data,
   );
@@ -694,6 +722,40 @@ export async function settleRefund(deps: DomainDeps, orderId: string): Promise<S
     execution: settledExecution,
     chainFetchedAtMs: read.fetchedAtMs,
   };
+}
+
+/**
+ * Whether `from` may send this refund: the refunder itself, or an HTLC the refunder funded,
+ * which is how a merchant's refund leaves Nimiq Pay (GAPS N29).
+ */
+async function isRefundSender(deps: DomainDeps, from: string, refunder: string): Promise<boolean> {
+  if (addressEquals(from, refunder)) return true;
+  const account = (await deps.chain.getAccountByAddress(from)).data;
+  const isHtlc = account.type === 'htlc' || account.type === 2;
+  return isHtlc && account.sender !== undefined && addressEquals(account.sender, refunder);
+}
+
+/**
+ * Finds the merchant's refund among recent transfers to the refund address: the right
+ * reference, the exact amount, and a sender the merchant controls. A lookalike from anyone
+ * else is ignored rather than recorded, so a stranger cannot mark an order failed by sending
+ * a transaction with this order's reference.
+ */
+async function findMerchantRefund(
+  deps: DomainDeps,
+  orderId: string,
+  execution: RefundExecution,
+): Promise<{ data: string | null; fetchedAtMs: number }> {
+  const reference = buildReference('R', orderId);
+  const page = await deps.chain.getTransactionsByAddress(execution.refundTo, 50, null);
+  for (const tx of page.data) {
+    const ref = parseReferenceFromHex(tx.recipientData);
+    if (ref === null || `${ref.version}:${ref.kind}:${ref.orderId}` !== reference) continue;
+    if (!addressEquals(tx.to, execution.refundTo) || tx.value !== execution.amountLuna) continue;
+    if (!(await isRefundSender(deps, tx.from, execution.refunderAddress))) continue;
+    return { data: tx.hash, fetchedAtMs: page.fetchedAtMs };
+  }
+  return { data: null, fetchedAtMs: page.fetchedAtMs };
 }
 
 // ---------------------------------------------------------------------------

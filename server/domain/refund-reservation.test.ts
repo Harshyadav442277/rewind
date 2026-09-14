@@ -14,6 +14,7 @@ import {
 } from './refund-reservation.js';
 import {
   OTHER,
+  SHOP,
   createPaidOrder,
   installGate,
   makeHarness,
@@ -397,5 +398,84 @@ describe('merchant-funded refunds', () => {
     expect(settled.order?.state).toBe('REFUND_FAILED');
     expect(settled.mismatch?.kind).toBe('recipient_mismatch');
     expect(settled.execution?.refundTxHash).toBeNull();
+  });
+
+  describe('a refund the merchant sends from Nimiq Pay, with no hash reported', () => {
+    // Merchant wallet SHOP pays out of its own HTLC, exactly as a buyer does (GAPS N29).
+    const SHOP_HTLC = 'NQ66 DL0K CXPR 0ACP 0D7T 06G4 67KT SQ6P 7M05';
+
+    async function approvedMerchantOrder(h: Harness) {
+      const order = await orderAwaitingApproval(h, { merchantId: 'shop' });
+      const reserved = await reserveRefund(h.deps, order.id);
+      if (!reserved.ok) throw new Error(reserved.reason);
+      return { order, execution: reserved.execution };
+    }
+
+    it('is found on chain by its reference and settles, even when it leaves the merchant HTLC', async () => {
+      const h = makeHarness();
+      h.chain.setHtlc(SHOP_HTLC, SHOP);
+      const { order, execution } = await approvedMerchantOrder(h);
+
+      const waiting = await settleRefund(h.deps, order.id);
+      expect(waiting.status).toBe('pending');
+      expect(waiting.message).toMatch(/Waiting for the merchant/);
+
+      const sent = h.chain.include({
+        from: SHOP_HTLC,
+        to: execution.refundTo,
+        value: execution.amountLuna,
+        data: `RW1:R:${order.id}`,
+        timestamp: h.clock.nowMs(),
+      });
+      h.chain.advanceHeight(h.deps.config.minConfirmations);
+
+      const settled = await settleRefund(h.deps, order.id);
+      expect(settled.status).toBe('refunded');
+      expect(settled.order?.state).toBe('REFUNDED');
+      expect(settled.execution?.refundTxHash).toBe(sent.hash);
+    });
+
+    it('ignores a lookalike from a wallet the merchant does not control, and does not fail the order', async () => {
+      const h = makeHarness();
+      const { order, execution } = await approvedMerchantOrder(h);
+
+      h.chain.include({
+        from: OTHER,
+        to: execution.refundTo,
+        value: execution.amountLuna,
+        data: `RW1:R:${order.id}`,
+        timestamp: h.clock.nowMs(),
+      });
+      h.chain.advanceHeight(h.deps.config.minConfirmations);
+
+      const settled = await settleRefund(h.deps, order.id);
+      expect(settled.status).toBe('pending');
+      expect((await h.repo.getOrder(order.id))?.state).toBe('REFUND_APPROVED');
+    });
+
+    it('does not settle a refund sent from an HTLC somebody else funded', async () => {
+      const h = makeHarness();
+      h.chain.setHtlc(SHOP_HTLC, OTHER);
+      const { order, execution } = await approvedMerchantOrder(h);
+
+      h.chain.include({
+        from: SHOP_HTLC,
+        to: execution.refundTo,
+        value: execution.amountLuna,
+        data: `RW1:R:${order.id}`,
+        timestamp: h.clock.nowMs(),
+      });
+      h.chain.advanceHeight(h.deps.config.minConfirmations);
+
+      expect((await settleRefund(h.deps, order.id)).status).toBe('pending');
+    });
+
+    it('still lets the demo treasury path report nothing to check before it broadcasts', async () => {
+      const h = makeHarness({ demoAutoApprove: false });
+      const order = await orderAwaitingApproval(h);
+      const reserved = await reserveRefund(h.deps, order.id);
+      expect(reserved.ok).toBe(true);
+      expect((await settleRefund(h.deps, order.id)).status).toBe('nothing_to_check');
+    });
   });
 });

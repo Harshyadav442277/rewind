@@ -79,7 +79,9 @@ export function stepsFor(status: OrderStatus): Step[] {
       label: 'Refund sent',
       sub: status.execution?.intendedTxHash
         ? 'Broadcast. Waiting for the chain to agree.'
-        : 'Recorded before it is sent, so a crash cannot lose or repeat it.',
+        : status.order.refundSource === 'MERCHANT_WALLET'
+          ? 'The shop sends it from its own wallet. Rewind finds it on chain by its reference.'
+          : 'Recorded before it is sent, so a crash cannot lose or repeat it.',
       status: mark(5),
     },
     {
@@ -179,6 +181,21 @@ export function OrderScreen({ orderId }: { orderId: string }) {
   const canRequestRefund = order.state === 'PAID';
   const staleMs =
     status.chainFetchedAtMs === null ? null : status.serverTimeMs - status.chainFetchedAtMs;
+  // A shop that refunds from its own wallet is a person, not the Demo Store's automation, so the
+  // buyer is told who the order is waiting on.
+  const waitingOnShop =
+    order.refundSource !== 'MERCHANT_WALLET'
+      ? null
+      : order.state === 'REFUND_REQUESTED'
+        ? 'Waiting for the shop to approve the refund.'
+        : order.state === 'REFUND_APPROVED'
+          ? 'Approved. Waiting for the shop to send the refund.'
+          : null;
+  // The server's own wording for the same wait. Saying it twice adds nothing.
+  const note =
+    waitingOnShop !== null && status.note === 'Waiting for the merchant to send the refund.'
+      ? null
+      : status.note;
 
   return (
     <main className="screen">
@@ -220,7 +237,12 @@ export function OrderScreen({ orderId }: { orderId: string }) {
         <Banner tone="warn">You cancelled the wallet dialog again. Still nothing sent.</Banner>
       ) : null}
       {payError ? <Banner tone="bad">{payError}</Banner> : null}
-      {status.note ? <Banner tone="warn">{status.note}</Banner> : null}
+      {waitingOnShop ? (
+        <Banner tone="neutral" data-testid="waiting-on-shop">
+          {waitingOnShop}
+        </Banner>
+      ) : null}
+      {note ? <Banner tone="warn">{note}</Banner> : null}
       {order.lastError ? <Banner tone="bad">{order.lastError}</Banner> : null}
       {error ? <Banner tone="warn">Could not refresh: {error}</Banner> : null}
 

@@ -114,6 +114,27 @@ export interface MerchantRequestRow {
   execution: ExecutionView | null;
 }
 
+/** A merchant created by a wallet signature (`api/merchant/register.ts`). */
+export interface RegisteredMerchant {
+  /** `w-` followed by the signing address, spaces removed, lower case. Payment links use it. */
+  id: string;
+  name: string;
+  /** The address that signed the registration, and the one payments go to. */
+  address: string;
+}
+
+/** What a payment link shows before paying (`api/merchants/[id].ts`). */
+export interface MerchantView extends RegisteredMerchant {
+  /** True only for the treasury-funded Demo Store, which has its own screen. */
+  isDemoStore: boolean;
+}
+
+export interface SignedText {
+  message: string;
+  publicKey: string;
+  signature: string;
+}
+
 export class ApiError extends Error {
   constructor(
     readonly code: string,
@@ -169,6 +190,16 @@ export const api = {
     }),
 
   getOrder: (id: string) => request<OrderStatus>(`/api/orders/${encodeURIComponent(id)}`),
+
+  /** `message` is the three-line `REWIND_MERCHANT_REGISTER_V1` text the wallet signed. */
+  registerMerchant: (signed: SignedText) =>
+    request<{ merchant: RegisteredMerchant }>('/api/merchant/register', {
+      method: 'POST',
+      body: JSON.stringify(signed),
+    }),
+
+  getMerchant: (id: string) =>
+    request<{ merchant: MerchantView }>(`/api/merchants/${encodeURIComponent(id)}`),
 
   /** `txHash` is null when the wallet gave us no usable hash; the server then scans. */
   submitPayment: (id: string, txHash: string | null) =>
