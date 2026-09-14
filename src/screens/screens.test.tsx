@@ -355,10 +355,12 @@ describe('Refund request', () => {
     );
   });
 
-  it('shows the paying address and tells you which wallet to sign with', async () => {
+  it('shows the paying address as the only place the refund can go', async () => {
     await render(<RefundScreen orderId={ORDER.id} />);
-    expect(text()).toContain('Sign with the wallet that paid');
+    expect(text()).toContain('only go back to the address that paid');
+    expect(text()).toContain('Refund goes to');
     expect(text()).toContain('NQ64 P4YR');
+    expect(text()).not.toContain('This device');
   });
 
   it('keeps the canonical text behind a "what am I signing" toggle', async () => {
@@ -398,7 +400,7 @@ describe('Refund request', () => {
     expect(apiMock.submitRefund).not.toHaveBeenCalled();
   });
 
-  it('shows the wrong-signer error in the API\'s own words', async () => {
+  it('shows a rejected signature in the API\'s own words', async () => {
     walletMock.sign.mockResolvedValue({
       status: 'ok',
       value: { publicKey: 'aa', signature: 'bb' },
@@ -406,17 +408,17 @@ describe('Refund request', () => {
     apiMock.submitRefund.mockRejectedValue(
       new FakeApiError(
         'bad_request',
-        'That signature is not from the wallet that paid for this order.',
-        'signer_not_payer: NQ11 OTHER does not match NQ64 P4YR',
+        'That signature could not be verified.',
+        'bad_signature: signature does not match the public key',
       ),
     );
     await render(<RefundScreen orderId={ORDER.id} />);
     await click(buttonWith('Sign refund request'));
     expect(byTestId('refund-error-message')?.textContent).toBe(
-      'That signature is not from the wallet that paid for this order.',
+      'That signature could not be verified.',
     );
     expect(byTestId('refund-error-detail')?.textContent).toBe(
-      'signer_not_payer: NQ11 OTHER does not match NQ64 P4YR',
+      'bad_signature: signature does not match the public key',
     );
   });
 
