@@ -625,16 +625,20 @@ describe.skipIf(!embedded)('PostgresRepository against a real Postgres engine', 
       expect(result.challenge.consumedAt).not.toBeNull();
     });
 
-    it('refuses a signature from any other wallet and leaves the order PAID', async () => {
+    it('accepts a signature from another address and still refunds only the payer', async () => {
       const h = harness();
       const order = await createPaidOrder(h);
       const signed = await signRefundRequest(h, order.id, OTHER);
 
       const result = await submitSignedRefundRequest(h.deps, { orderId: order.id, ...signed });
-      expect(result.ok).toBe(false);
-      if (result.ok) return;
-      expect(result.reason).toBe('wrong_signer');
-      expect((await repo.getOrder(order.id))?.state).toBe('PAID');
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.challenge.signerAddress).toBe(OTHER);
+
+      const reserved = await reserveRefund(h.deps, order.id);
+      expect(reserved.ok).toBe(true);
+      if (!reserved.ok) return;
+      expect(reserved.execution.refundTo).toBe(PAYER);
     });
 
     it('refuses a replayed challenge nonce', async () => {

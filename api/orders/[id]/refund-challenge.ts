@@ -57,6 +57,6 @@ export default withErrors(async (req: ApiRequest, res: ApiResponse) => {
     order: order ? orderView(order) : null,
     // Shown next to the Sign button so the buyer knows what they are approving.
     explain:
-      'Signing this proves you control the wallet that paid. It moves no NIM and costs no fee.',
+      'Signing requests the refund. It can only go back to the address that paid. It moves no NIM and costs no fee.',
   });
 });

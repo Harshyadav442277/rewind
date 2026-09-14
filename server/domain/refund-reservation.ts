@@ -25,7 +25,7 @@
 import { buildChallenge, checkChallengeAgainstOrder, parseChallenge } from './challenge.js';
 import { checkTreasuryCaps, describeCapDenial, type CapDenialReason } from './demo-treasury.js';
 import type { DomainDeps } from './deps.js';
-import { addressEquals, buildReference, normalizeAddress, normalizeTxHash } from './nimiq.js';
+import { buildReference, normalizeAddress, normalizeTxHash } from './nimiq.js';
 import type { Order, RefundChallenge, RefundExecution } from './types.js';
 import { describeMismatch, verifyRefund, type Mismatch } from './verify.js';
 import { UniqueViolationError } from '../db/repository.js';
@@ -104,7 +104,6 @@ export type SubmitRefundFailure =
   | 'message_mismatch'
   | 'challenge_rejected'
   | 'bad_signature'
-  | 'wrong_signer'
   | 'nonce_already_used'
   | 'wrong_state';
 
@@ -161,14 +160,12 @@ export async function submitSignedRefundRequest(
   if (!verification.ok) {
     return fail('bad_signature', verification.reason, 'That signature could not be verified.');
   }
-  if (order.payerAddress === null || !addressEquals(verification.address, order.payerAddress)) {
-    // The whole point of the signature: only the wallet that paid may ask for the money back.
-    return fail(
-      'wrong_signer',
-      `${verification.address} != ${order.payerAddress ?? 'none'}`,
-      'That signature is from a different wallet than the one that paid.',
-    );
-  }
+  // The signer does not have to be the payer. Nimiq Pay pays from one address of a wallet and
+  // signs with another, and the mini-app SDK lets the app choose neither (GAPS N29). What keeps
+  // the money safe is the destination: `refundTo` is part of the signed text and
+  // `checkChallengeAgainstOrder` has already required it to equal the chain-verified payer, so
+  // a request from any signer can only send the NIM back to the address that paid. The signer
+  // is recorded for the receipt.
 
   // Consume the nonce first. A replay of the same signed text loses here, before any state moves.
   const consumed = await deps.repo.consumeChallenge(parsed.value.nonce, {

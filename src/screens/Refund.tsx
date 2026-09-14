@@ -3,7 +3,7 @@ import { api, type ChallengeView, type OrderStatus } from '../api';
 import { ApiError } from '../api';
 import { navigate } from '../App';
 import { Banner, Card, Disclosure, Kv, Mono } from '../components/ui';
-import { getWallet, shortAddress } from '../wallet';
+import { getWallet } from '../wallet';
 
 type Phase = 'loading' | 'ready' | 'signing' | 'submitted' | 'cancelled' | 'error';
 
@@ -15,7 +15,6 @@ export function RefundScreen({ orderId }: { orderId: string }) {
   /** The API's own words for a rejected signature, shown as-is. */
   const [apiDetail, setApiDetail] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
-  const [walletAccount, setWalletAccount] = useState<string | null>(null);
 
   const requestChallenge = useCallback(async () => {
     setPhase('loading');
@@ -39,20 +38,6 @@ export function RefundScreen({ orderId }: { orderId: string }) {
   useEffect(() => {
     void requestChallenge();
   }, [requestChallenge]);
-
-  useEffect(() => {
-    let cancelled = false;
-    void getWallet()
-      .listAccounts()
-      .then((outcome) => {
-        if (!cancelled && outcome.status === 'ok' && outcome.value[0]) {
-          setWalletAccount(outcome.value[0]);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   async function sign() {
     if (!challenge) return;
@@ -104,26 +89,19 @@ export function RefundScreen({ orderId }: { orderId: string }) {
   const expiresIn = challenge
     ? Math.max(0, challenge.expiresAtSec - Math.floor(Date.now() / 1000))
     : 0;
-  const wrongWallet =
-    payer !== null &&
-    walletAccount !== null &&
-    payer.replace(/\s+/g, '').toUpperCase() !== walletAccount.replace(/\s+/g, '').toUpperCase();
 
   return (
     <main className="screen">
       <Card title="Request a refund">
         <p>
-          <strong>Sign with the wallet that paid.</strong> Signing proves you control that
-          wallet. It moves no NIM and costs no fee.
+          <strong>Sign to request the refund.</strong> The refund can only go back to the
+          address that paid, checked on chain. Signing moves no NIM and costs no fee.
         </p>
         {payer ? (
           <dl style={{ margin: '0 0 12px' }}>
-            <Kv label="Paying wallet">
+            <Kv label="Refund goes to">
               <Mono value={payer} max={16} />
             </Kv>
-            {walletAccount ? (
-              <Kv label="This device">{shortAddress(walletAccount)}</Kv>
-            ) : null}
             {challenge ? <Kv label="Refund amount">{challenge.amountLuna} Luna</Kv> : null}
             {challenge ? <Kv label="Request valid for">{expiresIn}s</Kv> : null}
           </dl>
@@ -141,13 +119,6 @@ export function RefundScreen({ orderId }: { orderId: string }) {
           </Disclosure>
         ) : null}
       </Card>
-
-      {wrongWallet ? (
-        <Banner tone="warn">
-          This device's wallet is not the wallet that paid. Only{' '}
-          <Mono value={payer ?? ''} max={16} /> can sign this request.
-        </Banner>
-      ) : null}
 
       {phase === 'cancelled' ? (
         <Banner tone="warn" data-testid="cancelled-banner">

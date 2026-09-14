@@ -14,6 +14,7 @@ import {
 } from './refund-reservation.js';
 import {
   OTHER,
+  PAYER,
   createPaidOrder,
   installGate,
   makeHarness,
@@ -40,18 +41,21 @@ describe('signed refund request', () => {
     expect(result.challenge.consumedAt).not.toBeNull();
   });
 
-  it('rejects a signature from any other wallet', async () => {
+  it('accepts a signature from another address, and the refund still goes only to the payer', async () => {
+    // Nimiq Pay pays from one address of a wallet and signs with another (GAPS N29).
     const h = makeHarness();
     const order = await createPaidOrder(h);
     const signed = await signRefundRequest(h, order.id, OTHER);
 
     const result = await submitSignedRefundRequest(h.deps, { orderId: order.id, ...signed });
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.reason).toBe('wrong_signer');
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.challenge.signerAddress).toBe(OTHER);
 
-    const fresh = await h.repo.getOrder(order.id);
-    expect(fresh?.state).toBe('PAID');
+    const reserved = await reserveRefund(h.deps, order.id);
+    expect(reserved.ok).toBe(true);
+    if (!reserved.ok) return;
+    expect(reserved.execution.refundTo).toBe(PAYER);
   });
 
   it('rejects an expired challenge', async () => {
