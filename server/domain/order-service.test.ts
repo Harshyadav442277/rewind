@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildReference } from './nimiq';
+import { ChainUnavailableError } from './ports';
 import { createOrder, submitPaymentHint, verifyOrderPayment } from './order-service';
 import { AMOUNT_LUNA, PAYER, createPaidOrder, makeHarness } from './test-helpers';
 
@@ -102,6 +103,49 @@ describe('payment verification', () => {
     expect(result.status).toBe('paid');
     if (result.status !== 'paid') return;
     expect(result.order.payerAddress).toBe(PAYER);
+  });
+
+  it('falls back to the reference scan when the node cannot answer for the hinted hash', async () => {
+    const h = makeHarness();
+    const order = await freshOrder(h);
+
+    const tx = h.chain.include({
+      from: PAYER,
+      to: order.merchantAddress,
+      value: AMOUNT_LUNA,
+      data: buildReference('P', order.id),
+      timestamp: h.clock.nowMs(),
+    });
+    h.chain.advanceHeight(h.deps.config.minConfirmations);
+    await submitPaymentHint(h.deps, order.id, tx.hash);
+
+    const chain = h.deps.chain;
+    const blind = Object.create(chain);
+    blind.getTransactionByHash = async () => {
+      throw new ChainUnavailableError('Transaction not found');
+    };
+    const deps = { ...h.deps, chain: blind };
+
+    const result = await verifyOrderPayment(deps, order.id);
+    expect(result.status).toBe('paid');
+    if (result.status !== 'paid') return;
+    expect(result.order.paymentTxHash).toBe(tx.hash);
+  });
+
+  it('stays unavailable when the hash lookup fails and the scan finds nothing', async () => {
+    const h = makeHarness();
+    const order = await freshOrder(h);
+    await submitPaymentHint(h.deps, order.id, 'a'.repeat(64));
+
+    const blind = Object.create(h.deps.chain);
+    blind.getTransactionByHash = async () => {
+      throw new ChainUnavailableError('Transaction not found');
+    };
+
+    await expect(verifyOrderPayment({ ...h.deps, chain: blind }, order.id)).rejects.toBeInstanceOf(
+      ChainUnavailableError,
+    );
+    expect((await h.deps.repo.getOrder(order.id))?.state).toBe('PAYMENT_PENDING');
   });
 
   it('will not let one payment back two orders', async () => {

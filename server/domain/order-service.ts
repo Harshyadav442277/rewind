@@ -17,7 +17,7 @@ import {
 } from './nimiq';
 import { describeMismatch, verifyPayment, type Mismatch } from './verify';
 import type { DomainDeps } from './deps';
-import type { ChainRead } from './ports';
+import { ChainUnavailableError, type ChainRead } from './ports';
 import type { Order, RefundSource } from './types';
 import { UniqueViolationError } from '../db/repository';
 
@@ -184,7 +184,7 @@ export async function verifyOrderPayment(
   // Either follow the hint, or find the payment ourselves by its reference.
   const read =
     hash !== null && isValidTxHash(hash)
-      ? await deps.chain.getTransactionByHash(hash)
+      ? await readHintOrScan(deps, order, hash)
       : await findPaymentByReference(deps, order);
   const now = deps.clock.nowMs();
 
@@ -315,6 +315,27 @@ export async function verifyOrderPayment(
       };
     }
     throw err;
+  }
+}
+
+/**
+ * Follows the wallet's hash hint. If the node cannot answer for that hash — the light client
+ * throws "Transaction not found" for included transactions it did not broadcast itself — the
+ * reference scan gets one try. A scan miss is still "we do not know", so the original
+ * unavailability is rethrown rather than turned into "not included".
+ */
+async function readHintOrScan(
+  deps: DomainDeps,
+  order: Order,
+  hash: string,
+): Promise<ChainRead<RpcTransaction | null>> {
+  try {
+    return await deps.chain.getTransactionByHash(hash);
+  } catch (err) {
+    if (!(err instanceof ChainUnavailableError)) throw err;
+    const scanned = await findPaymentByReference(deps, order);
+    if (scanned.data === null) throw err;
+    return scanned;
   }
 }
 
