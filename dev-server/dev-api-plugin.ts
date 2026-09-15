@@ -81,7 +81,7 @@ function adaptResponse(res: ServerResponse): ApiResponse {
 
 /**
  * Loads `.env.local` from the repository root into `process.env`, without overriding anything
- * already set — the rehearsal script passes its variables explicitly and those must win.
+ * already set — variables passed on the command line must win.
  *
  * Vite reads `.env` files for the CLIENT bundle (`VITE_`-prefixed only) and never puts them in
  * `process.env`, so without this the API handlers running in this process would not see
@@ -124,34 +124,17 @@ export function devApiPlugin(): Plugin {
       const log = (line: string) => server.config.logger.info(line);
       loadDotEnvLocal(server.config.root, log);
 
-      if (process.env.REWIND_CHAIN === 'lightclient') {
-        // The port vite ASKED for is not always the port it gets — it walks forward when one
-        // is busy, and a URL typed into a phone from the wrong port is a silent dead end. So
-        // this waits for the socket and reports what it actually bound.
-        server.httpServer?.once('listening', () => {
-          const bound = server.httpServer?.address();
-          const port = typeof bound === 'object' && bound ? bound.port : server.config.server.port;
-          for (const address of lanAddresses()) {
-            log(`[rewind-dev-api] phone (same wifi): http://${address}:${port}`);
-          }
-        });
-        // Boot the client NOW rather than on the phone's first tap: consensus is 5-6 s on
-        // testnet and every request would otherwise queue behind it. Loaded through the SSR
-        // graph on purpose — importing it here would be a DIFFERENT module instance from the
-        // one the handlers use, and the whole point is one shared client per process.
-        void server
-          .ssrLoadModule('/server/chain/light-client-chain-reader.ts')
-          .then(async (mod: Record<string, unknown>) => {
-            const boot = mod.getSharedLightClient as (o?: unknown) => Promise<unknown>;
-            const name = process.env.REWIND_NETWORK === 'testnet' ? 'testnet' : 'mainnet';
-            log(`[rewind-dev-api] warming the ${name} light client…`);
-            await boot({ network: name, onLog: log });
-            log('[rewind-dev-api] light client ready');
-          })
-          .catch((err: unknown) => {
-            server.config.logger.error(`[rewind-dev-api] light client boot failed: ${String(err)}`);
-          });
-      }
+      // The port vite ASKED for is not always the port it gets — it walks forward when one is
+      // busy, and a URL typed into a phone from the wrong port is a silent dead end. So this
+      // waits for the socket and reports what it actually bound, for opening the dev server in
+      // Nimiq Pay's Custom URL from a phone on the same network.
+      server.httpServer?.once('listening', () => {
+        const bound = server.httpServer?.address();
+        const port = typeof bound === 'object' && bound ? bound.port : server.config.server.port;
+        for (const address of lanAddresses()) {
+          log(`[rewind-dev-api] phone (same network): http://${address}:${port}`);
+        }
+      });
 
       server.middlewares.use(async (req, res, next) => {
         const rawUrl = req.url ?? '';

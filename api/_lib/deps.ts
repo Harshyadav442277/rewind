@@ -3,8 +3,9 @@
  *
  * Defaults are the offline ones: in-memory repository, fake chain, fake signature verifier,
  * fake treasury. That is what makes `npm run dev` walk the whole flow in a browser with no
- * database, no wallet and no node. Nothing here is a deployment configuration — a deployment
- * must set REWIND_REPO=postgres and REWIND_CHAIN=rpc, and both of those paths are UNTESTED.
+ * database, no wallet and no node. A deployment sets REWIND_REPO=postgres and REWIND_CHAIN=rpc;
+ * production has run that way on Vercel with Neon and `rpc.nimiqwatch.com` since 2026-09-14.
+ * Any other REWIND_CHAIN value is refused rather than falling back to the fake chain.
  */
 
 import { InMemoryRepository } from '../../server/db/memory.js';
@@ -31,26 +32,15 @@ import type {
   TxBroadcaster,
 } from '../../server/domain/ports.js';
 import { RpcChainReader } from '../../server/chain/rpc-chain-reader.js';
-import {
-  defaultNetworkId,
-  networkNameFromEnv,
-  LightClientChainReader,
-  type NetworkName,
-} from '../../server/chain/light-client-chain-reader.js';
+import { defaultNetworkId, networkNameFromEnv, type NetworkName } from '../../server/chain/network.js';
 import type { Merchant } from '../../server/domain/types.js';
 
 const env = (name: string, fallback = ''): string => process.env[name] ?? fallback;
 
 export const REPO_MODE = env('REWIND_REPO', 'memory');
-export const CHAIN_MODE = env('REWIND_CHAIN', 'fake');
-/**
- * `lightclient` runs an in-process `@nimiq/core` node. It is the LOCAL testnet rehearsal mode:
- * one client, booted once, shared by every request, so the phone can walk the whole flow on
- * testnet with free faucet NIM. It is refused in production, where a function instance would
- * pay a 5-32 s consensus boot on every cold invocation inside a 15 s budget.
- */
-export const IS_LIGHT_CLIENT = CHAIN_MODE === 'lightclient';
-export const IS_FAKE_CHAIN = CHAIN_MODE !== 'rpc' && !IS_LIGHT_CLIENT;
+/** `fake` (the default, local development only) or `rpc`. Unset and empty both mean `fake`. */
+export const CHAIN_MODE = process.env.REWIND_CHAIN || 'fake';
+export const IS_FAKE_CHAIN = CHAIN_MODE !== 'rpc';
 /** `testnet` or `mainnet`, from `REWIND_NETWORK`. Reported by `GET /api/health`. */
 export const NETWORK_NAME: NetworkName = networkNameFromEnv();
 
@@ -71,14 +61,7 @@ export function useRealSignatureVerifier(e: NodeJS.ProcessEnv = process.env): bo
     }
     return false;
   }
-  return (
-    e.NODE_ENV === 'production' ||
-    e.VERCEL_ENV === 'production' ||
-    e.REWIND_CHAIN === 'rpc' ||
-    // The rehearsal exists to exercise real wallet signatures against a real chain. A fake
-    // verifier there would prove nothing at all.
-    e.REWIND_CHAIN === 'lightclient'
-  );
+  return e.NODE_ENV === 'production' || e.VERCEL_ENV === 'production' || e.REWIND_CHAIN === 'rpc';
 }
 
 /**
@@ -106,27 +89,6 @@ class LazyTreasuryTxBuilder implements RefundTxBuilder {
       this.impl = TreasuryTxBuilder.fromEnv();
     }
     return this.impl.prepare(request);
-  }
-}
-
-/**
- * The light-client treasury broadcaster, resolved on first use so the WASM client is booted
- * by the first request that actually needs the chain rather than at module load.
- */
-class LazyLightClientBroadcaster implements TxBroadcaster {
-  private impl: TxBroadcaster | null = null;
-
-  constructor(private readonly networkId: number) {}
-
-  async broadcast(serializedTx: string): Promise<{ hash: string }> {
-    if (!this.impl) {
-      const { LightClientTxBroadcaster } = await import('../../server/chain/light-client-broadcaster.js');
-      this.impl = new LightClientTxBroadcaster({
-        networkId: this.networkId,
-        network: NETWORK_NAME,
-      });
-    }
-    return this.impl.broadcast(serializedTx);
   }
 }
 
@@ -175,7 +137,7 @@ function buildConfig(): DomainConfig {
   return {
     ...DEFAULT_CONFIG,
     // `REWIND_NETWORK_ID` wins; otherwise the network decides — 5 for `REWIND_NETWORK=testnet`,
-    // 24 otherwise. `TreasuryTxBuilder.fromEnv` derives its signing networkId from the same
+    // 24 otherwise (`server/chain/network.ts`). `TreasuryTxBuilder.fromEnv` derives its signing networkId from the same
     // two variables, so the id the domain checks and the id the treasury signs with cannot
     // drift apart.
     networkId: env('REWIND_NETWORK_ID', String(defaultNetworkId())),
@@ -229,6 +191,11 @@ function buildRepository(config: DomainConfig): Repository {
 
 export function getDeps(): DomainDeps {
   if (deps) return deps;
+  if (CHAIN_MODE !== 'fake' && CHAIN_MODE !== 'rpc') {
+    // The testnet light-client mode was removed on 2026-09-15. An unknown value must not fall
+    // through to the fake chain.
+    throw new Error(`REWIND_CHAIN=${CHAIN_MODE} is not supported. Use rpc, or fake for local development.`);
+  }
   const config = buildConfig();
   repository = buildRepository(config);
 
@@ -260,38 +227,6 @@ export function getDeps(): DomainDeps {
         timestamp: Date.now(),
       });
     });
-  } else if (IS_LIGHT_CLIENT) {
-    // Dev-only. A serverless instance cannot hold a light client: it would pay a 5-32 s
-    // consensus boot on every cold invocation, inside `vercel.json`'s 15 s budget.
-    if (process.env.VERCEL_ENV === 'production' || process.env.NODE_ENV === 'production') {
-      throw new Error(
-        'REWIND_CHAIN=lightclient is refused in production. It is the local testnet rehearsal mode; deploy with REWIND_CHAIN=rpc.',
-      );
-    }
-    chainReader = new CachingChainReader(
-      new LightClientChainReader({ clock: systemClock, network: NETWORK_NAME }),
-      systemClock,
-      {
-        // The client's own reads are local or verified, and the rehearsal is one phone: keep
-        // the cache short so a poll reflects the chain rather than the cache. There is no
-        // shared rate limit to protect here, which is the only reason the RPC TTLs are long.
-        txTtlMs: 5_000,
-        missTtlMs: 1_000,
-        blockNumberTtlMs: 1_000,
-        addressTtlMs: 2_000,
-        accountTtlMs: 5_000,
-      },
-    );
-    signatureVerifier = new LazyNimiqSignatureVerifier();
-    if (process.env.REWIND_TREASURY_PRIVATE_KEY) {
-      txBuilder = new LazyTreasuryTxBuilder();
-      broadcaster = new LazyLightClientBroadcaster(Number(config.networkId));
-    } else {
-      // Same refusal as the RPC path: no key, no refund. The obligation is still recorded and
-      // the order sits in REFUND_APPROVED.
-      txBuilder = null;
-      broadcaster = null;
-    }
   } else {
     const endpoint = env('NIMIQ_RPC_URL');
     if (!endpoint) throw new Error('REWIND_CHAIN=rpc but NIMIQ_RPC_URL is not set');

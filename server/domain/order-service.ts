@@ -328,9 +328,10 @@ export async function verifyOrderPayment(
  *    a hash that will never exist looks like — a wrong value from a wallet, or one posted by
  *    anyone who knows the order id. Following such a hint alone would keep the order waiting
  *    until it expires while the real payment sits on chain.
- *  - The node cannot answer for the hash at all (the light client throws "Transaction not found"
- *    for included transactions it did not broadcast). A scan miss is then still "we do not
- *    know", so the original unavailability is rethrown rather than turned into "not included".
+ *  - The node cannot answer for the hash at all (an RPC error other than "not found", or a node
+ *    that throws for included transactions it did not relay, as the `@nimiq/core` light client
+ *    did in testing on 2026-09-14). A scan miss is then still "we do not know", so the original
+ *    unavailability is rethrown rather than turned into "not included".
  *
  * The scan only finds a candidate; `verifyPayment` still decides.
  */

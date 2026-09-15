@@ -40,54 +40,37 @@ import {
 import { DATA_MAX_BYTES, utf8ByteLength } from '../domain/nimiq.js';
 import { ChainUnavailableError, type PreparedRefundTx, type RefundTxBuilder, type RefundTxRequest, type TxBroadcaster } from '../domain/ports.js';
 import { requireAddress } from '../crypto/nimiq-address.js';
+import { defaultNetworkId, NETWORK_IDS } from './network.js';
 import type { FetchLike } from './rpc-chain-reader.js';
 
 /** Mainnet Albatross. Observed two independent ways in spikes/server-tx, 2026-09-13. */
-export const MAINNET_NETWORK_ID = 24;
+export const MAINNET_NETWORK_ID = NETWORK_IDS.mainnet;
 
 /** Luna per SIGNED serialised byte when the caller does not pin an absolute fee. */
 export const DEFAULT_FEE_PER_BYTE = 1;
 
 /**
  * The networkId a treasury signer should use when nothing pins one. `REWIND_NETWORK_ID` wins;
- * otherwise the testnet rehearsal (`REWIND_NETWORK=testnet`) is 5 and everything else is
- * mainnet's 24. Signing for the wrong network produces a transaction every node rejects, so
- * this default and the domain's `networkId` must agree — both derive from the same variables.
+ * otherwise `REWIND_NETWORK` decides (`network.ts`). Signing for the wrong network produces a
+ * transaction every node rejects, so this default and the domain's `networkId` must agree —
+ * both derive from the same variables, and `network.test.ts` holds them together.
  */
 export function treasuryNetworkIdFromEnv(env: NodeJS.ProcessEnv = process.env): number {
   const explicit = env.REWIND_NETWORK_ID ? Number(env.REWIND_NETWORK_ID) : NaN;
   if (Number.isInteger(explicit)) return explicit;
-  return env.REWIND_NETWORK === 'testnet' ? TESTNET_NETWORK_ID : MAINNET_NETWORK_ID;
+  return defaultNetworkId(env);
 }
 
-/** Testnet Albatross. `client.getNetworkId()` returned 5 on testnet (light-client spike). */
-export const TESTNET_NETWORK_ID = 5;
-
 /**
- * Shared by every broadcaster: a serialised transaction is lowercase hex, whole bytes, or it
- * is not a transaction. Returns the normalised form so the two broadcasters send identical
- * bytes for identical input, which is what makes re-broadcast on recovery idempotent.
+ * A serialised transaction is lowercase hex, whole bytes, or it is not a transaction. Returns
+ * the normalised form so identical input always sends identical bytes, which is what makes
+ * re-broadcast on recovery idempotent.
  */
 export function normalizeSerializedTx(serializedTx: string): string {
   if (typeof serializedTx !== 'string' || !/^(?:[0-9a-fA-F]{2})+$/.test(serializedTx)) {
     throw new Error('serialised transaction is not hex');
   }
   return serializedTx.toLowerCase();
-}
-
-/**
- * Parses stored bytes back into a transaction and runs the same local consensus gate
- * `TreasuryTxBuilder.prepare` runs before storing them — signature, data cap, sender !=
- * recipient, and the network. Used by the light-client broadcaster, which unlike an RPC node
- * has no server-side validator between it and the network: a transaction built for mainnet
- * must never be pushed at testnet peers, or the other way round.
- *
- * Returns the hash the network will give these exact bytes.
- */
-export function verifySerializedTx(serializedTx: string, networkId: number): { hash: string } {
-  const tx = Transaction.fromAny(normalizeSerializedTx(serializedTx));
-  tx.verify(Policy.MAX_SUPPORTED_VERSION, networkId);
-  return { hash: tx.hash() };
 }
 
 export interface TreasuryTxBuilderOptions {
