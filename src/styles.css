@@ -307,6 +307,8 @@ a.btn {
 .timeline .sub {
   font-size: 12px;
   color: var(--muted);
+  /* A 64-character transaction hash has no break points and pushed the page sideways on a phone. */
+  overflow-wrap: anywhere;
 }
 
 .tabs {
