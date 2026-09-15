@@ -3,6 +3,7 @@ import { api, type ChallengeView } from '../api';
 import { ApiError } from '../api';
 import { navigate } from '../App';
 import { Banner, Card, Disclosure, Kv, Mono } from '../components/ui';
+import { messageOf } from '../errors';
 import { getWallet } from '../wallet';
 
 type Phase = 'loading' | 'ready' | 'signing' | 'submitted' | 'cancelled' | 'error';
@@ -27,7 +28,7 @@ export function RefundScreen({ orderId }: { orderId: string }) {
       setRefundSource(response.order?.refundSource ?? null);
       setPhase('ready');
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(messageOf(err));
       if (err instanceof ApiError && err.detail) setApiDetail(err.detail);
       setPhase('error');
     }
@@ -75,7 +76,7 @@ export function RefundScreen({ orderId }: { orderId: string }) {
       // The wrong-signer case is an ApiError, and its message is written to be shown to a
       // buyer. It is rendered verbatim, with the server's detail underneath, because
       // paraphrasing "that wallet did not pay for this order" loses the only useful fact.
-      setError(err instanceof Error ? err.message : String(err));
+      setError(messageOf(err));
       if (err instanceof ApiError && err.detail) setApiDetail(err.detail);
       setPhase('error');
     }

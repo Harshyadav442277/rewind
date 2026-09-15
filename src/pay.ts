@@ -11,6 +11,7 @@ import { useCallback, useState } from 'react';
 import { api, type CreateOrderInput } from './api';
 import { navigate } from './App';
 import { rememberOrder } from './storage';
+import { messageOf } from './errors';
 import { getWallet, hasNimiqPay, isFakeWallet, NO_WALLET_MESSAGE } from './wallet';
 
 export const LUNA_PER_NIM = 100_000;
@@ -126,7 +127,7 @@ export function useOrderPayment() {
       await api.submitPayment(order.id, sent.value.txHash);
       navigate({ name: 'order', id: order.id });
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(messageOf(err));
       setPhase('error');
     } finally {
       setStep(null);

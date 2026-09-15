@@ -32,13 +32,15 @@
  *
  * Observed inside Nimiq Pay on Android (2026-09-13 and 2026-09-14): `sign` and
  * `sendBasicTransactionWithData` ran against production and a local server, and the payments
- * and signatures they produced were verified on chain and server-side. What a
- * cancelled dialog returns, and the raw string a send returns, were not logged, so the
- * cancellation and result mapping below is still proven only against a stubbed `window.nimiq`
- * (`wallet.test.ts`).
+ * and signatures they produced were verified on chain and server-side. The raw string a send
+ * returns was not logged. Tapping Reject (2026-09-15) produced a value the first mapping could
+ * not read and showed as "[object Object]"; its exact shape was not captured either, so the
+ * mapping below reads any shape (`errors.ts`) and is proven only against a stubbed
+ * `window.nimiq` (`wallet.test.ts`) until a device shows the cancelled screen.
  */
 
 import type { ErrorResponse, SignatureResult } from '@nimiq/mini-app-sdk';
+import { CODE_RE, rawOf, textsOf } from './errors';
 
 export interface SendPaymentRequest {
   recipient: string;
@@ -94,47 +96,55 @@ export function classifySendResult(raw: string): SentPayment {
 }
 
 /**
- * Words a wallet uses when the person said no. Matched on both the `type` and the `message`
- * of an ErrorResponse and on a thrown error's message, because which of those Nimiq Pay
- * actually produces has not been observed.
+ * Words a wallet uses when the person said no. Matched against every readable string in what
+ * the wallet returned, because the shape Nimiq Pay actually produces has not been captured.
  */
-const CANCEL_RE = /cancel|reject|denied|declin|abort|dismiss|user closed/i;
+const CANCEL_RE = /cancel|reject|denied|declin|abort|dismiss|refus|user closed/i;
 
 export function isErrorResponse(value: unknown): value is ErrorResponse {
   if (typeof value !== 'object' || value === null || !('error' in value)) return false;
   const error = (value as { error: unknown }).error;
-  return typeof error === 'object' && error !== null;
+  return (typeof error === 'object' && error !== null) || typeof error === 'string';
 }
 
-function errorFields(value: ErrorResponse): { type: string; message: string } {
-  const error = value.error as { type?: unknown; message?: unknown };
+/**
+ * One mapping for everything short of success, resolved or thrown. A cancel word anywhere
+ * means cancelled. Anything else is an error carrying the wallet's own words, or the raw value
+ * when it has none — never "[object Object]", and never "nothing was sent", because an
+ * unrecognised answer to a send does not prove that.
+ */
+function outcomeFromFailure<T>(value: unknown): WalletOutcome<T> {
+  // Kept so the real shape can be read from a remote-debugged WebView.
+  console.warn('Rewind: wallet call did not succeed', value);
+  const texts = textsOf(value);
+  const words = texts.filter((text) => !CODE_RE.test(text));
+  if (CANCEL_RE.test(texts.join(' '))) {
+    const said = words.find((text) => CANCEL_RE.test(text));
+    return { status: 'cancelled', message: said ?? 'You cancelled the wallet dialog.' };
+  }
+  const codes = texts.filter((text) => CODE_RE.test(text));
+  if (words.length > 0) {
+    return {
+      status: 'error',
+      message: words.join(' — '),
+      ...(codes.length > 0 ? { detail: codes.join(' ') } : {}),
+    };
+  }
+  if (codes.length > 0) return { status: 'error', message: codes.join(' ') };
   return {
-    type: typeof error.type === 'string' ? error.type : '',
-    message: typeof error.message === 'string' ? error.message : '',
+    status: 'error',
+    message: `The wallet did not complete that and gave no reason (it returned ${rawOf(value)}).`,
   };
 }
 
 /** An ErrorResponse the provider RESOLVED with. */
 export function outcomeFromErrorResponse<T>(value: ErrorResponse): WalletOutcome<T> {
-  const { type, message } = errorFields(value);
-  if (CANCEL_RE.test(`${type} ${message}`)) {
-    return { status: 'cancelled', message: message || 'You cancelled the wallet dialog.' };
-  }
-  return {
-    status: 'error',
-    message: message || type || 'The wallet refused that request.',
-    ...(type ? { detail: type } : {}),
-  };
+  return outcomeFromFailure<T>(value);
 }
 
 /** Anything the provider THREW, including a rejection carrying an ErrorResponse shape. */
 export function outcomeFromThrown<T>(err: unknown): WalletOutcome<T> {
-  if (isErrorResponse(err)) return outcomeFromErrorResponse<T>(err);
-  const message = err instanceof Error ? err.message : String(err);
-  if (CANCEL_RE.test(message)) {
-    return { status: 'cancelled', message: 'You cancelled the wallet dialog.' };
-  }
-  return { status: 'error', message: message || 'The wallet could not complete that.' };
+  return outcomeFromFailure<T>(err);
 }
 
 /** Collapses "resolved with an error object", "threw", and "resolved with a value". */
