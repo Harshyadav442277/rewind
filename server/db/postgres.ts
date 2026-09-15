@@ -275,14 +275,6 @@ export class PostgresRepository implements Repository {
     return row ? toMerchant(row) : null;
   }
 
-  async listMerchants(): Promise<Merchant[]> {
-    const sql = this.sql;
-    const rows = await this.rows(
-      () => sql`SELECT id, name, address, allow_treasury_refund FROM merchants ORDER BY id`,
-    );
-    return rows.map(toMerchant);
-  }
-
   async upsertMerchant(merchant: Merchant): Promise<Merchant> {
     const sql = this.sql;
     const rows = await this.rows(

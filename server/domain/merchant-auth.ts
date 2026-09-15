@@ -11,7 +11,7 @@
  *   REWIND_MERCHANT_V1
  *   merchant=<merchantId>
  *   address=<merchant address, canonical user-friendly form>
- *   action=<approve|reject|record-tx>
+ *   action=<approve|reject|list>
  *   order=<orderId>
  *   issued=<unix seconds>
  *   expires=<unix seconds>
@@ -38,7 +38,7 @@ export const MAX_MERCHANT_CHALLENGE_TTL_SEC = 300;
  * merchant bound in the text. It is bound to no order, so it uses `LIST_ORDER_SENTINEL`,
  * which is shape-valid (the parser is unchanged) and which a generated order id will not be.
  */
-export const MERCHANT_ACTIONS = ['approve', 'reject', 'record-tx', 'list'] as const;
+export const MERCHANT_ACTIONS = ['approve', 'reject', 'list'] as const;
 export type MerchantAction = (typeof MERCHANT_ACTIONS)[number];
 
 /** The `order=` value of a challenge that is not bound to one order. */

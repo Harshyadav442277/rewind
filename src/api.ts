@@ -244,9 +244,8 @@ export const api = {
 
   merchantAction: (
     orderId: string,
-    action: 'approve' | 'reject' | 'record-tx',
+    action: 'approve' | 'reject',
     signed?: { message: string; publicKey: string; signature: string },
-    txHash?: string,
   ) =>
     request<{
       order: OrderView | null;
@@ -257,6 +256,6 @@ export const api = {
       note?: string | null;
     }>('/api/merchant/refunds', {
       method: 'POST',
-      body: JSON.stringify({ orderId, action, ...(signed ?? {}), ...(txHash ? { txHash } : {}) }),
+      body: JSON.stringify({ orderId, action, ...(signed ?? {}) }),
     }),
 };

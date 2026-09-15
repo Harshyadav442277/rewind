@@ -85,10 +85,6 @@ export function formatLuna(luna: number): string {
   return `${sign}${whole}${frac ? `.${frac}` : ''} NIM`;
 }
 
-export function isPositiveIntegerLuna(value: unknown): value is number {
-  return typeof value === 'number' && Number.isSafeInteger(value) && value > 0;
-}
-
 // ---------------------------------------------------------------------------
 // Hex / utf-8
 // ---------------------------------------------------------------------------

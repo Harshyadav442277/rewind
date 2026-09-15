@@ -153,8 +153,8 @@ class LazyTxBroadcaster implements TxBroadcaster {
 export const DEMO_MERCHANT_ID = 'demo-store';
 
 /**
- * Placeholder addresses. They are shape-valid so the domain accepts them, and they are
- * obviously not wallets. No key exists for either, and none is in this repository.
+ * Placeholder address for the local dev loop. Shape-valid so the domain accepts it, and
+ * obviously not a wallet: no key exists for it, and none is in this repository.
  */
 const PLACEHOLDER_TREASURY = 'NQ79 TR3A 5URY 0000 0000 0000 0000 0000 0001';
 
@@ -163,14 +163,6 @@ export const DEMO_MERCHANT: Merchant = {
   name: 'Rewind Demo Store',
   address: env('REWIND_TREASURY_ADDRESS', PLACEHOLDER_TREASURY),
   allowTreasuryRefund: true,
-};
-
-/** A second, non-treasury merchant so the merchant-signs-their-own-refund path is reachable. */
-export const SAMPLE_MERCHANT: Merchant = {
-  id: 'sample-merchant',
-  name: 'Sample Merchant (signs their own refunds)',
-  address: env('REWIND_SAMPLE_MERCHANT_ADDRESS', 'NQ17 5AMP 1E00 0000 0000 0000 0000 0000 0002'),
-  allowTreasuryRefund: false,
 };
 
 function buildConfig(): DomainConfig {
@@ -231,7 +223,8 @@ function buildRepository(config: DomainConfig): Repository {
     throw new Error('REWIND_REPO=memory is refused in production. Set REWIND_REPO=postgres.');
   }
   void config;
-  return new InMemoryRepository([DEMO_MERCHANT, SAMPLE_MERCHANT]);
+  // Only the Demo Store. Shops are created by a wallet signature, as in production.
+  return new InMemoryRepository([DEMO_MERCHANT]);
 }
 
 export function getDeps(): DomainDeps {

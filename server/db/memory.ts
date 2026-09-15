@@ -68,10 +68,6 @@ export class InMemoryRepository implements Repository {
     return m ? clone(m) : null;
   }
 
-  async listMerchants(): Promise<Merchant[]> {
-    return [...this.merchants.values()].map(clone);
-  }
-
   async upsertMerchant(merchant: Merchant): Promise<Merchant> {
     await this.gate();
     const existing = this.merchants.get(merchant.id);
