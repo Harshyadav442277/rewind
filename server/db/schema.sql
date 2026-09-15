@@ -136,7 +136,11 @@ CREATE TABLE IF NOT EXISTS refund_executions (
   created_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
 
-  CONSTRAINT refund_executions_refund_to_not_self CHECK (refund_to <> refunder_address),
+  -- The treasury signs from its own address, and the protocol refuses a transfer to oneself.
+  -- A shop's refund leaves through its Nimiq Pay HTLC, so a shop may refund its own wallet.
+  CONSTRAINT refund_executions_treasury_refund_not_self CHECK (
+    source = 'MERCHANT_WALLET' OR refund_to <> refunder_address
+  ),
   CONSTRAINT refund_executions_confirmed_needs_hash CHECK (
     confirmed_at IS NULL OR refund_tx_hash IS NOT NULL
   ),

@@ -655,6 +655,23 @@ describe.skipIf(!embedded)('PostgresRepository against a real Postgres engine', 
       expect((await repo.getChallenge(signed.nonce))?.refundTo).toBe(funder);
     });
 
+    it('stores a shop refund to the shop\'s own wallet, which a shop paying itself produces', async () => {
+      // Owner's 2026-09-15 mainnet run hit refund_executions_refund_to_not_self here.
+      const h = harness();
+      const shopWallet = 'NQ64 5H0P 0000 0000 0000 0000 0000 0000 0004';
+      const shopHtlc = 'NQ66 DL0K CXPR 0ACP 0D7T 06G4 67KT SQ6P 7M05';
+      h.chain.setHtlc(shopHtlc, shopWallet);
+      const order = await createPaidOrder(h, { merchantId: 'shop', payer: shopHtlc });
+      const signed = await signRefundRequest(h, order.id, shopWallet);
+      expect((await submitSignedRefundRequest(h.deps, { orderId: order.id, ...signed })).ok).toBe(true);
+
+      const reserved = await reserveRefund(h.deps, order.id);
+      expect(reserved.ok).toBe(true);
+      if (!reserved.ok) return;
+      expect(reserved.execution.source).toBe('MERCHANT_WALLET');
+      expect(reserved.execution.refundTo).toBe(reserved.execution.refunderAddress);
+    });
+
     it('refuses a replayed challenge nonce', async () => {
       const h = harness();
       const order = await createPaidOrder(h);
