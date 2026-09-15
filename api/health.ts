@@ -1,4 +1,4 @@
-import { DEMO_MERCHANT, getDeps, IS_FAKE_CHAIN, IS_LIGHT_CLIENT, NETWORK_NAME, REPO_MODE } from './_lib/deps.js';
+import { DEMO_MERCHANT, getDeps, IS_FAKE_CHAIN, NETWORK_NAME, REPO_MODE } from './_lib/deps.js';
 import {
   clientIp,
   methodNotAllowed,
@@ -67,10 +67,10 @@ export default withErrors(async (req: ApiRequest, res: ApiResponse) => {
   return sendJson(res, 200, {
     chain: {
       reachable,
-      mode: IS_FAKE_CHAIN ? 'fake' : IS_LIGHT_CLIENT ? 'lightclient' : 'rpc',
+      mode: IS_FAKE_CHAIN ? 'fake' : 'rpc',
       // The frontend has no way of knowing which chain it is looking at otherwise, and
-      // "testnet" is the difference between a rehearsal and real money. Every explorer link in
-      // a view is already built server-side from this same base.
+      // "testnet" is the difference between a test and real money. Every explorer link in a
+      // view is already built server-side from this same base.
       network: NETWORK_NAME,
       explorerBase: explorerBase(),
       networkId: String(deps.config.networkId),

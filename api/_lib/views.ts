@@ -12,10 +12,9 @@ import type { Order, RefundChallenge, RefundExecution } from '../../server/domai
 
 /**
  * Explorer link prefix. `REWIND_EXPLORER_BASE` overrides it; otherwise the network decides,
- * because a mainnet explorer cannot render a testnet transaction and a link that 404s during
- * a rehearsal reads as a lost refund. `test.nimiq.watch` was opened on a real testnet hash in
- * `spikes/light-client` on 2026-09-13; `nimiq.watch` for mainnet is still unverified from this
- * repository (gap E1).
+ * because a mainnet explorer cannot render a testnet transaction and a link that 404s reads as
+ * a lost refund. `https://nimiq.watch/#<hash>` rendered the mainnet refund `0989689e…` on
+ * 2026-09-15; `test.nimiq.watch` rendered a testnet hash on 2026-09-13.
  *
  * The frontend never builds these: every link in a view comes from here, so switching network
  * switches the links with no client-side knowledge at all. `GET /api/health` reports the

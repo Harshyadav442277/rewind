@@ -507,8 +507,7 @@ describe('Refund request', () => {
   it('treats a 503 as submitted-but-unconfirmed, not as a rejection', async () => {
     // The signature is consumed before anything reads the chain, so "the node could not be
     // reached" never means the request failed — and re-signing would hit "nonce already
-    // used", which reads as a rejection to a buyer. The light-client rehearsal makes this
-    // the common case: it throws about transactions that exist for ~30 s after inclusion.
+    // used", which reads as a rejection to a buyer.
     walletMock.sign.mockResolvedValue({
       status: 'ok',
       value: { publicKey: 'aa', signature: 'bb' },

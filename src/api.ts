@@ -66,7 +66,7 @@ export interface OrderStatus {
 export interface HealthView {
   chain: {
     reachable: boolean;
-    /** `fake`, `lightclient` (local testnet rehearsal) or `rpc`. */
+    /** `fake` (local development) or `rpc`. */
     mode: string;
     /** `testnet` or `mainnet`. The client is told; it never guesses. */
     network: string;

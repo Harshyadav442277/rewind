@@ -37,15 +37,11 @@ export interface MerchantAuthEnv {
 /** True when a signature is required. Fails closed: only an explicit dev `off` disables it. */
 export function merchantAuthRequired(env: MerchantAuthEnv = process.env): boolean {
   const isProduction = env.VERCEL_ENV === 'production' || env.NODE_ENV === 'production';
-  // `lightclient` is the testnet rehearsal: a real chain, real signatures, a real wallet on a
-  // phone. The point of rehearsing is that nothing is relaxed relative to the deployed path.
-  const isRealChain = env.REWIND_CHAIN === 'rpc' || env.REWIND_CHAIN === 'lightclient';
+  const isRealChain = env.REWIND_CHAIN === 'rpc';
   if (env.REWIND_MERCHANT_AUTH === 'off') {
     // An "off" switch that survives into production is not a switch, it is a hole.
     if (isProduction || isRealChain) {
-      throw new Error(
-        'REWIND_MERCHANT_AUTH=off is refused with a real chain (rpc, lightclient) or in production.',
-      );
+      throw new Error('REWIND_MERCHANT_AUTH=off is refused with a real chain (rpc) or in production.');
     }
     return false;
   }
