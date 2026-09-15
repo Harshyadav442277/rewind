@@ -1,5 +1,11 @@
 # Spike: Nimiq Pay `sign()` → server-side verification (gate N11)
 
+> **Result, added 2026-09-15.** Gate N11 passed on 2026-09-13 at 17:48 UTC: on an Android phone, Nimiq Pay's `sign()`
+> produced a signature that verified only as the "Nimiq Signed Message" variant, the derived address was the wallet's
+> first account, and the public RPC's `verifySignature` agreed. The app's verifier
+> (`server/crypto/nimiq-signature-verifier.ts`) has since verified refund signatures in production. The text below is the
+> spike as written before that run, kept as its record; its "NOT verified" lines are historical.
+
 **Question.** Can a message signed by `window.nimiq.sign(message)` inside Nimiq Pay be verified
 server-side in Node with `@nimiq/core`, and can the signer's address be derived from the returned
 public key?
