@@ -22,25 +22,21 @@ export const MAX_REFERENCE_LENGTH = 40;
 
 /**
  * POST /api/orders   { merchantId?, amountLuna?, reference? }   create an order
- * GET  /api/orders   list recent orders (merchant screen and local development)
  *
- * `amountLuna` and `reference` exist for the merchant screen, which creates its own orders.
- * Left out, the single Demo Store item is used. `reference` is the merchant's own label for
- * the order — their invoice number, a table number — and it is stored as the item label. It
- * never reaches the chain: the on-chain reference is always `RW1:P:<orderId>`, which is what
- * the payment scan looks for.
+ * `amountLuna` and `reference` exist for payment links, which name their own amount and label.
+ * Left out, the single Demo Store item is used. `reference` is the shop's own label for the
+ * order — their invoice number, a table number — and it is stored as the item label. It never
+ * reaches the chain: the on-chain reference is always `RW1:P:<orderId>`, which is what the
+ * payment scan looks for.
+ *
+ * There is deliberately no GET. A list of every order would hand anyone the payer addresses
+ * and the order ids of strangers. A buyer reads their own order by its id, and a shop reads
+ * its own orders through `GET /api/merchant/refunds`, signed by the shop's wallet.
  */
 export default withErrors(async (req: ApiRequest, res: ApiResponse) => {
+  if (req.method !== 'POST') return methodNotAllowed(res, ['POST']);
+
   const deps = getDeps();
-
-  if (req.method === 'GET') {
-    const limit = rateLimit(`orders:list:${clientIp(req)}`, DEFAULT_LIMITS.read);
-    if (!limit.allowed) return sendError(res, 'rate_limited', 'Too many requests. Slow down.');
-    const orders = await deps.repo.listOrders(50);
-    return sendJson(res, 200, { orders: orders.map(orderView) });
-  }
-
-  if (req.method !== 'POST') return methodNotAllowed(res, ['GET', 'POST']);
 
   const limit = rateLimit(`orders:create:${clientIp(req)}`, DEFAULT_LIMITS.write);
   if (!limit.allowed) return sendError(res, 'rate_limited', 'Too many orders. Wait a moment.');

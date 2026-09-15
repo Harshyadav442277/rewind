@@ -54,6 +54,20 @@ export const TERMINAL_STATES: readonly OrderState[] = [
 /** States in which a refund obligation exists and money may already be in flight. */
 export const REFUND_IN_FLIGHT_STATES: readonly OrderState[] = ['REFUND_APPROVED', 'REFUND_BROADCAST'];
 
+/**
+ * Every state an order can be in once its buyer has signed a refund request: what a shop's
+ * refund board lists. `PostgresRepository.listMerchantRefundOrders` spells the same list out in
+ * SQL, and a test holds the two together.
+ */
+export const REFUND_BOARD_STATES: readonly OrderState[] = [
+  'REFUND_REQUESTED',
+  'REFUND_APPROVED',
+  'REFUND_BROADCAST',
+  'REFUNDED',
+  'REFUND_FAILED',
+  'REJECTED',
+];
+
 export function isOrderState(value: unknown): value is OrderState {
   return typeof value === 'string' && (ORDER_STATES as readonly string[]).includes(value);
 }

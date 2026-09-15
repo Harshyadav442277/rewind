@@ -337,10 +337,17 @@ export class PostgresRepository implements Repository {
     return row ? toOrder(row) : null;
   }
 
-  async listOrders(limit = 100): Promise<Order[]> {
+  /** The state list is `REFUND_BOARD_STATES`, written out so only scalars are bound. */
+  async listMerchantRefundOrders(merchantId: string, limit: number): Promise<Order[]> {
     const sql = this.sql;
     const rows = await this.rows(
-      () => sql`SELECT * FROM orders ORDER BY created_at DESC LIMIT ${limit}`,
+      () => sql`
+        SELECT * FROM orders
+        WHERE merchant_id = ${merchantId}
+          AND state IN ('REFUND_REQUESTED', 'REFUND_APPROVED', 'REFUND_BROADCAST',
+                        'REFUNDED', 'REFUND_FAILED', 'REJECTED')
+        ORDER BY created_at DESC
+        LIMIT ${limit}`,
     );
     return rows.map(toOrder);
   }

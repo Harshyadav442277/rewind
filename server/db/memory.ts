@@ -20,7 +20,7 @@ import type {
   RefundChallenge,
   RefundExecution,
 } from '../domain/types.js';
-import type { OrderState } from '../domain/states.js';
+import { REFUND_BOARD_STATES, type OrderState } from '../domain/states.js';
 import {
   CONSTRAINTS,
   NotFoundError,
@@ -103,8 +103,9 @@ export class InMemoryRepository implements Repository {
     return id ? this.getOrder(id) : null;
   }
 
-  async listOrders(limit = 100): Promise<Order[]> {
+  async listMerchantRefundOrders(merchantId: string, limit: number): Promise<Order[]> {
     return [...this.orders.values()]
+      .filter((o) => o.merchantId === merchantId && REFUND_BOARD_STATES.includes(o.state))
       .sort((a, b) => b.createdAt - a.createdAt)
       .slice(0, limit)
       .map(clone);
