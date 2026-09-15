@@ -33,8 +33,6 @@ export const CONSTRAINTS = {
   merchantNonce: 'merchant_nonces_pkey',
 } as const;
 
-export type ConstraintName = (typeof CONSTRAINTS)[keyof typeof CONSTRAINTS];
-
 export class UniqueViolationError extends Error {
   readonly code = 'UNIQUE_VIOLATION';
   constructor(readonly constraint: string) {
@@ -61,7 +59,6 @@ export type ChallengeConsumePatch = Pick<
 export interface Repository {
   // -- merchants ------------------------------------------------------------
   getMerchant(id: string): Promise<Merchant | null>;
-  listMerchants(): Promise<Merchant[]>;
   /**
    * Inserts a merchant, or renames an existing one. The address and the treasury flag of an
    * existing row are never changed: a merchant id is derived from its address, so a different

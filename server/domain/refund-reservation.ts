@@ -568,8 +568,9 @@ export async function executeTreasuryRefund(
 }
 
 /**
- * The merchant sent the refund from their own wallet in Nimiq Pay and reported a hash.
- * The hash is a hint. `settleRefund` decides whether it is this order's refund.
+ * Records the hash of a shop's refund that `findMerchantRefund` found on chain, and moves the
+ * order to REFUND_BROADCAST. The hash is still only a pointer: `settleRefund` decides whether it
+ * is this order's refund.
  */
 export async function recordMerchantRefundBroadcast(
   deps: DomainDeps,
@@ -888,9 +889,4 @@ async function markFailed(
     });
   }
   return updated;
-}
-
-/** Used by the merchant screen and the receipt. */
-export function refundToAddressOf(execution: RefundExecution): string {
-  return normalizeAddress(execution.refundTo) ?? execution.refundTo;
 }

@@ -630,10 +630,6 @@ describe.skipIf(!embedded)('PostgresRepository against a real Postgres engine', 
       expect(listed.map((c) => c.nonce)).toEqual(['2'.repeat(32), '1'.repeat(32)]);
       expect(await repo.listChallengesForOrder('nobody')).toHaveLength(0);
     });
-
-    it('lists merchants in id order', async () => {
-      expect((await repo.listMerchants()).map((m) => m.id)).toEqual(['demo-store', 'shop']);
-    });
   });
 
   // -------------------------------------------------------------------------

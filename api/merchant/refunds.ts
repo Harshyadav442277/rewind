@@ -16,7 +16,6 @@ import { isMerchantAction, LIST_ORDER_SENTINEL } from '../../server/domain/merch
 import { challengeView, executionView, orderView } from '../_lib/views.js';
 import {
   executeTreasuryRefund,
-  recordMerchantRefundBroadcast,
   rejectRefund,
   reserveRefund,
   settleRefund,
@@ -24,7 +23,7 @@ import {
 
 /**
  * GET  /api/merchant/refunds                       list refund requests
- * POST /api/merchant/refunds  { orderId, action }  approve | reject | record-tx
+ * POST /api/merchant/refunds  { orderId, action }  approve | reject
  *
  * BOTH verbs are authenticated the same way: the caller presents `message`, `publicKey` and
  * `signature` for a merchant challenge issued by POST /api/merchant/challenge, and the
@@ -153,7 +152,7 @@ export default withErrors(async (req: ApiRequest, res: ApiResponse) => {
   const orderId = requireString(body, 'orderId', { maxLength: 64 });
   const action = requireString(body, 'action', { maxLength: 32 });
   if (!isMerchantAction(action) || action === 'list') {
-    return sendError(res, 'bad_request', 'Unknown action.', 'use approve, reject or record-tx');
+    return sendError(res, 'bad_request', 'Unknown action.', 'use approve or reject');
   }
 
   // Authenticate before touching any state, and before revealing whether the order exists.
@@ -191,22 +190,6 @@ export default withErrors(async (req: ApiRequest, res: ApiResponse) => {
     return sendJson(res, 200, { order: orderView(rejected) });
   }
 
-  if (action === 'record-tx') {
-    // The merchant sent the refund from their own wallet and is reporting the hash.
-    const txHash = requireString(body, 'txHash', { maxLength: 128 });
-    const recorded = await recordMerchantRefundBroadcast(deps, orderId, txHash);
-    if (!recorded.ok) {
-      return sendError(res, 'conflict', 'That refund transaction could not be recorded.', `${recorded.reason}: ${recorded.detail}`);
-    }
-    const settled = await settleRefund(deps, orderId);
-    return sendJson(res, 200, {
-      order: settled.order ? orderView(settled.order) : null,
-      execution: settled.execution ? executionView(settled.execution) : null,
-      status: settled.status,
-      note: settled.message ?? null,
-    });
-  }
-
   const reserved = await reserveRefund(deps, orderId);
   if (!reserved.ok) {
     if (reserved.reason === 'not_found') return sendError(res, 'not_found', 'Order not found.');
@@ -216,8 +199,9 @@ export default withErrors(async (req: ApiRequest, res: ApiResponse) => {
     return sendError(res, 'conflict', reserved.message, `${reserved.reason}: ${reserved.detail}`);
   }
 
-  // Demo Store only: the capped treasury sends it now. A real merchant signs in their wallet
-  // and then calls back with action=record-tx.
+  // Demo Store only: the capped treasury sends it now. A shop sends its refund from Nimiq Pay,
+  // and `settleRefund` finds that transfer on chain by its `RW1:R:` reference; nothing is
+  // reported back.
   let status = 'reserved';
   if (reserved.execution.source === 'DEMO_TREASURY' && deps.broadcaster && deps.txBuilder) {
     const sent = await executeTreasuryRefund(deps, orderId);

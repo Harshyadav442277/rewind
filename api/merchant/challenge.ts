@@ -40,7 +40,7 @@ export default withErrors(async (req: ApiRequest, res: ApiResponse) => {
   const merchantId = requireString(body, 'merchantId', { maxLength: 64 });
   const action = requireString(body, 'action', { maxLength: 32 });
   if (!isMerchantAction(action)) {
-    return sendError(res, 'bad_request', 'Unknown action.', 'use approve, reject, record-tx or list');
+    return sendError(res, 'bad_request', 'Unknown action.', 'use approve, reject or list');
   }
   const orderId =
     action === 'list' ? LIST_ORDER_SENTINEL : requireString(body, 'orderId', { maxLength: 64 });

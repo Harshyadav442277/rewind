@@ -406,7 +406,3 @@ a {
   text-decoration: underline;
   cursor: pointer;
 }
-
-.paused {
-  opacity: 0.55;
-}

@@ -176,7 +176,9 @@ CREATE TABLE IF NOT EXISTS merchant_nonces (
   nonce                 TEXT PRIMARY KEY,
   merchant_id           TEXT        NOT NULL REFERENCES merchants (id),
   merchant_address      TEXT        NOT NULL,
-  action                TEXT        NOT NULL CHECK (action IN ('approve', 'reject', 'record-tx', 'list')),
+  -- Neon's copy of this CHECK still allows 'record-tx', an action removed on 2026-09-15; a looser
+  -- CHECK is harmless, so no migration was run.
+  action                TEXT        NOT NULL CHECK (action IN ('approve', 'reject', 'list')),
   -- The order the challenge is bound to. A 'list' challenge is bound to no order and uses
   -- the all-zero sentinel, which is shape-valid and which no generated order id will be.
   order_id              TEXT        NOT NULL,

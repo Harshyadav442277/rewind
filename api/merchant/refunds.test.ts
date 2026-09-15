@@ -107,6 +107,27 @@ afterEach(() => {
   resetDeps();
 });
 
+describe('POST /api/merchant/refunds', () => {
+  it('refuses the removed record-tx action: a shop refund is found on chain, never reported', async () => {
+    const shop = await registerShop(SHOP_ADDRESS, 'Corner Coffee');
+    const order = await seedOrder(shop, 'REFUND_APPROVED', Date.now() - 60_000);
+
+    const { res, captured } = makeRes();
+    await handler(
+      {
+        method: 'POST',
+        headers: {},
+        query: {},
+        body: { orderId: order.id, action: 'record-tx', txHash: 'e'.repeat(64) },
+      },
+      res,
+    );
+
+    expect(captured.status).toBe(400);
+    expect((await getDeps().repo.getOrder(order.id))?.state).toBe('REFUND_APPROVED');
+  });
+});
+
 describe('GET /api/merchant/refunds', () => {
   it("still shows a shop's waiting refund request after 60 newer Demo Store orders", async () => {
     const shop = await registerShop(SHOP_ADDRESS, 'Corner Coffee');

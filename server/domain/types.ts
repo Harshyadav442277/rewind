@@ -115,7 +115,7 @@ export interface MerchantNonce {
   nonce: string;
   merchantId: string;
   merchantAddress: string;
-  /** `approve` | `reject` | `record-tx` | `list`. */
+  /** `approve` | `reject` | `list`. */
   action: string;
   /** The order the challenge is bound to, or the all-zero sentinel for a `list` challenge. */
   orderId: string;
@@ -126,10 +126,4 @@ export interface MerchantNonce {
   expiresAtSec: number;
   consumedAt: number | null;
   signerAddress: string | null;
-}
-
-export interface RefundRequestView {
-  order: Order;
-  challenge: RefundChallenge;
-  execution: RefundExecution | null;
 }
