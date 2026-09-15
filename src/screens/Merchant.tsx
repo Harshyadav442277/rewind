@@ -17,6 +17,7 @@ import {
   paymentLinkFor,
 } from '../pay';
 import { readSavedMerchant, readSentRefunds, rememberSentRefund, saveMerchant } from '../storage';
+import { messageOf } from '../errors';
 import { getWallet } from '../wallet';
 
 /** Must match `server/domain/merchant-registration.ts`, byte for byte. */
@@ -91,7 +92,7 @@ export function MerchantScreen() {
       setRows(response.requests.filter((row) => row.order.merchantId === current.merchantId));
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(messageOf(err));
       // A refused sign-in (expired, or a different wallet) will not start working by polling
       // it again. A network error might, so only a refusal stops the board.
       if (err instanceof ApiError && err.code === 'bad_request') {
@@ -139,7 +140,7 @@ export function MerchantScreen() {
       setMerchant(response.merchant);
       setLabel(response.merchant.name);
     } catch (err) {
-      setSetupError(err instanceof Error ? err.message : String(err));
+      setSetupError(messageOf(err));
     } finally {
       setRegistering(false);
     }
@@ -223,7 +224,7 @@ export function MerchantScreen() {
         expiresAtSec: challenge.expiresAtSec,
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(messageOf(err));
     } finally {
       setSigningIn(false);
     }
@@ -265,7 +266,7 @@ export function MerchantScreen() {
       );
       if (session) await load(session);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(messageOf(err));
     } finally {
       setBusyId(null);
     }
@@ -303,7 +304,7 @@ export function MerchantScreen() {
       setNote(REFUND_SENT_NOTE);
       if (session) await load(session);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(messageOf(err));
     } finally {
       setBusyId(null);
     }

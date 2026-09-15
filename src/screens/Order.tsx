@@ -12,6 +12,7 @@ import {
   toneForState,
   type Step,
 } from '../components/ui';
+import { messageOf } from '../errors';
 import { getWallet } from '../wallet';
 
 const POLL_MS = 3_000;
@@ -113,7 +114,7 @@ export function OrderScreen({ orderId }: { orderId: string }) {
       setStatus(await api.getOrder(orderId));
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(messageOf(err));
     }
   }, [orderId]);
 
@@ -145,7 +146,7 @@ export function OrderScreen({ orderId }: { orderId: string }) {
       await api.submitPayment(orderId, sent.value.txHash);
       await load();
     } catch (err) {
-      setPayError(err instanceof Error ? err.message : String(err));
+      setPayError(messageOf(err));
     } finally {
       setPaying(false);
     }

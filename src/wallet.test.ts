@@ -25,6 +25,7 @@ import {
   outcomeFromThrown,
   resetWallet,
 } from './wallet';
+import { messageOf } from './errors';
 
 const HASH = 'a'.repeat(64);
 const SERIALIZED = '0100' + 'bc'.repeat(80); // long, hex, and not 64 characters
@@ -201,6 +202,73 @@ describe('outcomeFromThrown', () => {
 
   it('handles a non-Error rejection', () => {
     expect(outcomeFromThrown('boom')).toEqual({ status: 'error', message: 'boom' });
+  });
+
+  // Reject in Nimiq Pay on Android rendered "[object Object]" (2026-09-15). The exact shape was
+  // not captured, so the likely ones are pinned: none may reach the screen as "[object Object]".
+  it.each([
+    [{ message: 'User rejected the request' }],
+    [{ code: 4001, message: 'Request rejected by user' }],
+    [{ type: 'USER_CANCELED' }],
+    [{ error: 'Cancelled' }],
+    [{ error: { type: 'REJECTED', message: { text: 'no' } } }],
+    [{ reason: 'dismissed' }],
+    [new Error('The user refused')],
+  ])('maps the plain-object rejection %j to cancelled', (value) => {
+    expect(outcomeFromThrown(value).status).toBe('cancelled');
+  });
+
+  it.each([[{}], [{ foo: 1 }], [new Error('[object Object]')], [null], [undefined]])(
+    'never shows "[object Object]" for %j, and shows what the wallet returned',
+    (value) => {
+      const outcome = outcomeFromThrown(value);
+      expect(outcome.status).toBe('error');
+      if (outcome.status === 'error') {
+        expect(outcome.message).not.toContain('[object Object]');
+        expect(outcome.message).toContain('gave no reason');
+      }
+    },
+  );
+
+  it('keeps a readable failure from a plain object as an error with its words', () => {
+    expect(outcomeFromThrown({ code: 'NO_CONSENSUS', message: 'consensus not established' })).toEqual({
+      status: 'error',
+      message: 'consensus not established',
+      detail: 'NO_CONSENSUS',
+    });
+  });
+});
+
+describe('messageOf', () => {
+  it('returns an Error message verbatim', () => {
+    expect(messageOf(new Error('That signature is not from the wallet this refund goes back to.'))).toBe(
+      'That signature is not from the wallet this refund goes back to.',
+    );
+  });
+
+  it('reads a plain object instead of printing "[object Object]"', () => {
+    expect(messageOf({ message: 'boom' })).toBe('boom');
+    expect(messageOf({})).not.toContain('[object Object]');
+  });
+});
+
+describe('screens reach a rejection through the adapter', () => {
+  it('turns a RESOLVED plain-object rejection of a send into cancelled, not a paid order', async () => {
+    installProvider({
+      sendBasicTransactionWithData: async () => ({ error: 'User rejected' }),
+    });
+    await expect(
+      new NimiqPayWallet().sendPayment({ recipient: 'NQ11', value: 1, data: 'x' }),
+    ).resolves.toMatchObject({ status: 'cancelled' });
+  });
+
+  it('turns a THROWN plain-object rejection of a signature into cancelled', async () => {
+    installProvider({
+      sign: async () => Promise.reject({ message: 'User rejected the request' }),
+    });
+    await expect(new NimiqPayWallet().sign('hello')).resolves.toMatchObject({
+      status: 'cancelled',
+    });
   });
 });
 
