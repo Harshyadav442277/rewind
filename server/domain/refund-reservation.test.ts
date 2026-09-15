@@ -470,6 +470,32 @@ describe('merchant-funded refunds', () => {
       expect((await settleRefund(h.deps, order.id)).status).toBe('pending');
     });
 
+    it('lets a shop refund its own wallet when it was paid from that wallet\'s HTLC', async () => {
+      // One Nimiq Pay wallet as both shop and buyer: HTLC → shop, refund HTLC → shop.
+      const h = makeHarness();
+      h.chain.setHtlc(SHOP_HTLC, SHOP);
+      const order = await createPaidOrder(h, { merchantId: 'shop', payer: SHOP_HTLC });
+      const signed = await signRefundRequest(h, order.id, SHOP);
+      const submitted = await submitSignedRefundRequest(h.deps, { orderId: order.id, ...signed });
+      expect(submitted.ok).toBe(true);
+
+      const reserved = await reserveRefund(h.deps, order.id);
+      expect(reserved.ok).toBe(true);
+      if (!reserved.ok) return;
+      expect(reserved.execution.refundTo).toBe(SHOP);
+      expect(reserved.execution.refunderAddress).toBe(SHOP);
+
+      h.chain.include({
+        from: SHOP_HTLC,
+        to: SHOP,
+        value: reserved.execution.amountLuna,
+        data: `RW1:R:${order.id}`,
+        timestamp: h.clock.nowMs(),
+      });
+      h.chain.advanceHeight(h.deps.config.minConfirmations);
+      expect((await settleRefund(h.deps, order.id)).status).toBe('refunded');
+    });
+
     it('still lets the demo treasury path report nothing to check before it broadcasts', async () => {
       const h = makeHarness({ demoAutoApprove: false });
       const order = await orderAwaitingApproval(h);

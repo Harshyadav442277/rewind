@@ -307,6 +307,16 @@ export async function reserveRefund(
 
   const nowMs = deps.clock.nowMs();
 
+  if (order.refundSource === 'DEMO_TREASURY' && addressEquals(signed.refundTo, order.refunderAddress)) {
+    // The treasury sends from its own address, and a transfer to oneself is refused on chain.
+    return {
+      ok: false,
+      reason: 'wrong_state',
+      detail: 'treasury refund to the treasury',
+      message: 'The Demo Store cannot refund its own wallet.',
+    };
+  }
+
   if (order.refundSource === 'DEMO_TREASURY') {
     const [walletRows, hourRows, allRows] = await Promise.all([
       deps.repo.listDemoRefundsForWalletSince(signed.refundTo, 0),
