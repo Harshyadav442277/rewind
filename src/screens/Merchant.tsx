@@ -23,7 +23,7 @@ import { getWallet } from '../wallet';
 export const REGISTRATION_HEADER = 'REWIND_MERCHANT_REGISTER_V1';
 export const MAX_SHOP_NAME_LENGTH = 40;
 export const SHARE_NOTE = 'Share it. The buyer opens it inside Nimiq Pay.';
-export const REFUND_SENT_NOTE = 'Sent. Rewind confirms it on chain, usually within a minute.';
+export const REFUND_SENT_NOTE = 'Sent. Rewind marks it refunded once the chain shows it.';
 
 /**
  * A refund this device handed to the wallet is not offered again for this long, so a second tap

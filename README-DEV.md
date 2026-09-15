@@ -1,5 +1,7 @@
 # Rewind — developer notes
 
+The judge-facing walkthrough is `DEMO.md`.
+
 Rewritten 2026-09-15 for `main` after the audit pass (PRs #7–#13). Earlier versions of this file, including the full
 2026-09-13 testnet rehearsal evidence, are in git history.
 
@@ -63,6 +65,7 @@ the LAN URL at the port vite actually bound. A plain `http://` LAN URL was accep
 | `api/merchant/register.ts`, `api/merchants/[id].ts` | Shop registration by signature; the public shop record a link shows |
 | `api/merchant/challenge.ts`, `api/merchant/refunds.ts` | Signed merchant challenges; the shop board (GET, signed and scoped) and approve / reject (POST) |
 | `api/health.ts` | Chain reachability, treasury balance and floor, `demoPaused` |
+| `api/_tests/`, `api/_dev/fake-chain.ts` | Handler tests and the dev-only fake chain. The underscore keeps them out of the deployment; `api/_tests/deploy-surface.test.ts` pins the deployed functions to the ten handlers |
 | `server/domain/` | Framework-free core |
 | `server/domain/refund-reservation.ts` | Refund destination, signed request, exactly-once reservation, treasury send, settlement, recovery sweep |
 | `server/domain/order-service.ts` | Order creation, payment hint, payment verification (hint, then reference scan) |
@@ -96,10 +99,12 @@ itself, an HTLC is refunded to its `sender` (the wallet that funded it), any oth
 names that address as `refundTo`, and only a signature recovering that address is accepted. Nimiq Pay was seen paying
 from an HTLC funded by the signing wallet on mainnet and testnet (2026-09-14).
 
-Known edge, unverified: a never-used address reads as `{balance: 0, type: "basic"}`. If a payer's HTLC is emptied or
-times out before the refund request and the node then reports it as basic, the destination becomes the HTLC address,
-nobody can sign for it, and the buyer gets `wrong_signer`. No NIM can be sent there, because a reservation needs that
-signature. Fix candidate: read the payment's `fromType`.
+The payment transaction's `fromType` decides the kind of payer, because an account can change after it pays: a
+never-used address reads as `{balance: 0, type: "basic"}`, and Nimiq Pay's HTLCs time out after about two weeks. For an
+HTLC the funder comes from the contract while it exists, otherwise from the `sender` in its executed contract-creation
+transaction (`toType` 2 and the creation flag; a later transfer with look-alike data is ignored). Verified read-only on
+mainnet on 2026-09-15: payment `feafc8a8…` resolves to `NQ87…MUXR` with the live HTLC and with the HTLC made to read as
+closed (PR #16). Limit: only the newest 50 transactions of the HTLC are searched; beyond that the request is refused.
 
 ## Payment links
 
@@ -142,7 +147,6 @@ and buyer.
 | R2 | A treasury ledger row is written before the broadcast and never removed | Caps count NIM committed, not confirmed |
 | R3 | A long RPC outage looks like a stuck order | 503 with `retry-after: 5`; no alert |
 | N1 | `merchant_nonces` is purged only when a merchant challenge is issued | Grows slowly otherwise |
-| H2 | HTLC emptied or timed out before the refund request (above) | The buyer cannot obtain a refund |
 
 ## Environment variables
 
@@ -182,8 +186,11 @@ applied. Do not expose `npm run dev` (it binds to the LAN) on an untrusted netwo
 
 Commands run on 2026-09-15, Windows 11, node v24.19.0, npm 11.13.0:
 
-- On `main` `a99a9ef` plus this file: `npm run build` (typecheck, then vite build) → built, main chunk 183.91 kB;
-  `npx vitest run` → Test Files 22 passed (22); Tests 395 passed | 4 skipped (399)
-- On PR #12's branch, 05:56 UTC, read-only mainnet smoke of the RPC wiring (`REWIND_CHAIN=rpc`, no key, local):
-  `GET /api/health` → 200, `mode rpc`, `network mainnet`, networkId 24, block 61,645,373, treasury 19.00442 NIM. PR #13
-  changed only the refund validity window, which this read does not touch
+- On `main` after PR #16 plus `DEMO.md`: `npm run build` (typecheck, then vite build) → built, main chunk 183.90 kB;
+  `npx vitest run` → Test Files 23 passed (23); Tests 406 passed | 4 skipped (410)
+- Preview deployment of `main` `dbe867a` (`rewind-5af7nzl9t`, 07:32 UTC): 10 functions, none of them a test or the dev
+  fake chain; its `/api/health` answered 200 in fake / memory mode, because `REWIND_REPO` and `REWIND_CHAIN` are
+  production-only env vars, so the preview touched no production data
+- Read-only mainnet runs with `vite-node` and no key: the RPC wiring's `GET /api/health` → 200, networkId 24, block
+  61,645,373 (05:56 UTC, PR #12's branch); the refund destination of payment `feafc8a8…` → `NQ87…MUXR`, both with the
+  live HTLC and with the HTLC made to read as closed (07:30 UTC, PR #16's branch)
