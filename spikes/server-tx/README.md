@@ -1,5 +1,13 @@
 # Rewind spike — server-side Nimiq mainnet transaction (gate N12)
 
+> **Result, added 2026-09-15.** Gate N12 passed on 2026-09-13 at about 18:00 UTC: the owner funded the treasury
+> `NQ14 E6Y2 Y9CC 8GVY 1163 VBMJ YP54 QACN V4JD`, and `build-tx.mjs --broadcast` sent
+> `d78856bb6cbec89cb2ec56e539d15ec2839f9b66b6e08d1c0191a8cf2adcd2db` (block 61,514,978, `executionResult` true, data
+> round-tripped). Production has since built and pushed a Demo Store refund with the same construction
+> (`0989689e…`, block 61,603,650). The text below was written before that broadcast and is kept as the spike's record;
+> its "Nothing has been broadcast" and UNVERIFIED lines are historical. The treasury key lives in this folder's
+> gitignored `.env.local` and in the Vercel env, never in git.
+
 Proves that a plain Node process can build, sign, serialise and round-trip a Nimiq **mainnet**
 basic-with-data transaction with `@nimiq/core@2.21.0`, and packages the exact broadcast +
 confirmation path so the owner can run the one funded step.
