@@ -373,16 +373,32 @@ async function findPaymentByReference(
   return { data: match, fetchedAtMs: page.fetchedAtMs, source: page.source };
 }
 
-/** Marks an unpaid, expired order EXPIRED. Never touches an order that has money against it. */
+/**
+ * Marks an unpaid, expired order EXPIRED. Never touches an order that has money against it:
+ * a PAYMENT_PENDING order is one the wallet said it paid, so the chain is read first, and the
+ * order expires only when nothing for it is on chain. A shallow payment keeps waiting, a paid
+ * one becomes PAID here, and a chain that cannot be read throws and leaves the order alone.
+ */
 export async function expireOrderIfStale(deps: DomainDeps, orderId: string): Promise<Order | null> {
   const order = await deps.repo.getOrder(orderId);
   if (!order) return null;
   if (order.state !== 'CREATED' && order.state !== 'PAYMENT_PENDING') return order;
   if (deps.clock.nowMs() < order.expiresAt) return order;
+
+  let current = order;
+  if (order.state === 'PAYMENT_PENDING') {
+    const check = await verifyOrderPayment(deps, orderId);
+    if (check.status === 'not_found') return null;
+    current = check.order;
+    const nothingOnChain = check.status === 'waiting' && check.mismatch.kind === 'not_included';
+    // A rejected hint has already put the order back to CREATED, which expires like any other.
+    if (!nothingOnChain && current.state !== 'CREATED') return current;
+  }
+  if (current.state !== 'CREATED' && current.state !== 'PAYMENT_PENDING') return current;
   return (
-    (await deps.repo.updateOrder(orderId, order.state, {
+    (await deps.repo.updateOrder(orderId, current.state, {
       state: 'EXPIRED',
       updatedAt: deps.clock.nowMs(),
-    })) ?? order
+    })) ?? current
   );
 }
