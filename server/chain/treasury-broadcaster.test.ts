@@ -18,6 +18,7 @@ import {
 import type { FetchLike } from './rpc-chain-reader.js';
 import { ChainUnavailableError } from '../domain/ports.js';
 import { buildReference } from '../domain/nimiq.js';
+import { DEFAULT_CONFIG } from '../domain/deps.js';
 
 /** In-memory only. Never persisted, never funded, never used twice. */
 function ephemeralKeyHex(): string {
@@ -38,6 +39,13 @@ const request = (over: Partial<Parameters<TreasuryTxBuilder['prepare']>[0]> = {}
   feeLuna: 0,
   validityStartHeight: 61_480_000,
   ...over,
+});
+
+describe('protocol constants the domain copies', () => {
+  it('uses the transaction validity window in blocks, not in batches', () => {
+    expect(Policy.TRANSACTION_VALIDITY_WINDOW_BLOCKS).toBe(7_200);
+    expect(DEFAULT_CONFIG.refundValidityWindowBlocks).toBe(Policy.TRANSACTION_VALIDITY_WINDOW_BLOCKS);
+  });
 });
 
 describe('TreasuryTxBuilder construction', () => {
