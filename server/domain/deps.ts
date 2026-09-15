@@ -51,7 +51,11 @@ export const DEFAULT_CONFIG: DomainConfig = {
   networkId: 24,
   minConfirmations: 2,
   refundFeeLuna: 0,
-  refundValidityWindowBlocks: 120,
+  // Albatross keeps a transaction valid for 7,200 blocks after its validity start height
+  // (`@nimiq/core` 2.21.0: `Policy.TRANSACTION_VALIDITY_WINDOW_BLOCKS` = 7200). This was 120,
+  // which is `Policy.TRANSACTION_VALIDITY_WINDOW` counted in batches, so a refund still valid on
+  // chain was marked failed after two minutes. `treasury-broadcaster.test.ts` pins the value.
+  refundValidityWindowBlocks: 7_200,
   challengeTtlSec: DEFAULT_CHALLENGE_TTL_SEC,
   orderTtlMs: 30 * 60 * 1000,
   treasuryCaps: DEFAULT_TREASURY_CAPS,

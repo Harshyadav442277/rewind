@@ -505,3 +505,49 @@ describe('merchant-funded refunds', () => {
     });
   });
 });
+
+describe('the refund validity window', () => {
+  it('keeps waiting on a stored refund past 120 blocks, then re-sends the same bytes', async () => {
+    const h = makeHarness();
+    const order = await orderAwaitingApproval(h);
+    await reserveRefund(h.deps, order.id);
+
+    // Bytes stored, nothing sent.
+    h.broadcaster.outcome = 'throw_before_send';
+    expect((await executeTreasuryRefund(h.deps, order.id)).ok).toBe(false);
+    const stored = await h.repo.getRefundExecutionByOrder(order.id);
+
+    // Two minutes of blocks later the transaction is still valid on chain. It must not be
+    // called failed, which would tell a buyer "needs a person" about a refund that can land.
+    h.chain.advanceHeight(121);
+    const waiting = await settleRefund(h.deps, order.id);
+    expect(waiting.status).toBe('pending');
+    expect((await h.repo.getOrder(order.id))?.state).toBe('REFUND_APPROVED');
+
+    h.broadcaster.outcome = 'ok';
+    const resent = await executeTreasuryRefund(h.deps, order.id);
+    expect(resent.ok).toBe(true);
+    expect(h.broadcaster.distinctSentCount()).toBe(1);
+    expect(h.broadcaster.sent[0]).toBe(stored?.serializedTx);
+
+    h.chain.advanceHeight(h.deps.config.minConfirmations);
+    expect((await settleRefund(h.deps, order.id)).status).toBe('refunded');
+  });
+
+  it('fails a refund that was never included only after the full window has passed', async () => {
+    const h = makeHarness();
+    const order = await orderAwaitingApproval(h);
+    await reserveRefund(h.deps, order.id);
+    h.broadcaster.outcome = 'throw_before_send';
+    await executeTreasuryRefund(h.deps, order.id);
+
+    h.chain.advanceHeight(h.deps.config.refundValidityWindowBlocks);
+    expect((await settleRefund(h.deps, order.id)).status).toBe('pending');
+
+    h.chain.advanceHeight(2);
+    const dead = await settleRefund(h.deps, order.id);
+    expect(dead.status).toBe('failed');
+    expect(dead.execution?.failureReason).toBe('validity_window_lapsed');
+    expect((await h.repo.getOrder(order.id))?.state).toBe('REFUND_FAILED');
+  });
+});
