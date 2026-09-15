@@ -9,7 +9,7 @@
  */
 
 import type { RpcAccount, RpcTransaction } from './nimiq.js';
-import { normalizeAddress } from './nimiq.js';
+import { ACCOUNT_TYPE, addressToHex, normalizeAddress } from './nimiq.js';
 import type {
   ChainRead,
   ChainReader,
@@ -209,11 +209,19 @@ export interface FakeTxInput {
   fee?: number;
   /** Plain text; encoded to hex as `recipientData`. */
   data?: string;
+  /** Raw hex `recipientData`, for binary data such as an HTLC's creation data. Wins over `data`. */
+  dataHex?: string;
   blockNumber?: number | null;
   executionResult?: boolean;
   networkId?: number | string;
   timestamp?: number | null;
   validityStartHeight?: number;
+  /** Defaults: 2 when `from` is a registered HTLC, otherwise 0. `toType` defaults to 0. */
+  fromType?: number;
+  toType?: number;
+  flags?: number;
+  /** Leave `fromType` / `toType` / `flags` out of the record, as an older node's answer would. */
+  omitTypes?: boolean;
 }
 
 /**
@@ -247,10 +255,22 @@ export class FakeChain {
       to: input.to,
       value: input.value,
       fee: input.fee ?? 0,
-      recipientData: input.data === undefined ? undefined : utf8Hex(input.data),
+      recipientData:
+        input.dataHex !== undefined ? input.dataHex : input.data === undefined ? undefined : utf8Hex(input.data),
       validityStartHeight: input.validityStartHeight ?? (blockNumber ?? this.height),
       executionResult: input.executionResult ?? true,
       networkId: input.networkId ?? this.networkId,
+      ...(input.omitTypes
+        ? {}
+        : {
+            fromType:
+              input.fromType ??
+              (this.htlcFunders.has(normalizeAddress(input.from) ?? input.from)
+                ? ACCOUNT_TYPE.HTLC
+                : ACCOUNT_TYPE.BASIC),
+            toType: input.toType ?? ACCOUNT_TYPE.BASIC,
+            flags: input.flags ?? 0,
+          }),
     };
     this.byHash.set(hash, tx);
     return tx;
@@ -266,6 +286,30 @@ export class FakeChain {
   /** Makes `address` an HTLC funded by `funder`, the way Nimiq Pay's paying address is. */
   setHtlc(address: string, funder: string): void {
     this.htlcFunders.set(normalizeAddress(address) ?? address, funder);
+  }
+
+  /**
+   * `setHtlc`, plus the creation transaction in the address's history, laid out like the mainnet
+   * creation `9bf66ef2…`: sender, recipient, Blake2b, zero hash root, count 1, timeout.
+   */
+  createHtlc(address: string, funder: string, recipient: string): RpcTransaction {
+    this.setHtlc(address, funder);
+    const creationData = `${addressToHex(funder)}${addressToHex(recipient)}01${'0'.repeat(64)}01${(1_790_530_365_363).toString(16).padStart(16, '0')}`;
+    return this.include({
+      from: funder,
+      to: address,
+      value: 20_000_000,
+      dataHex: creationData,
+      fromType: ACCOUNT_TYPE.BASIC,
+      toType: ACCOUNT_TYPE.HTLC,
+      flags: 1,
+      blockNumber: this.height - 1_000,
+    });
+  }
+
+  /** The contract is gone (emptied, or resolved after its timeout): the address reads as basic again. */
+  closeHtlc(address: string): void {
+    this.htlcFunders.delete(normalizeAddress(address) ?? address);
   }
 
   balanceOf(address: string): number {

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { DomainDeps } from './deps.js';
 import type { ChainReader } from './ports.js';
 import { fakeKeyFor, fakeSign } from './fakes.js';
+import { ACCOUNT_TYPE, addressToHex } from './nimiq.js';
 import {
   executeTreasuryRefund,
   issueRefundChallenge,
@@ -92,25 +93,106 @@ describe('signed refund request', () => {
         expect(result.reason).toBe('wrong_signer');
       }
     });
+
+    describe('after the HTLC has closed (GAPS N30)', () => {
+      const NIMIQ_PAY_COSIGNER = 'NQ14 LU5R UH54 92SH GEN4 U63C SV4V 7N49 YYU4';
+
+      it('still refunds the funder, read from the transaction that created the HTLC', async () => {
+        const h = makeHarness();
+        h.chain.createHtlc(HTLC, FUNDER, NIMIQ_PAY_COSIGNER);
+        const order = await createPaidOrder(h, { payer: HTLC });
+        // Emptied, or resolved after its timeout: the address now reads as a basic account.
+        h.chain.closeHtlc(HTLC);
+        expect((await h.deps.chain.getAccountByAddress(HTLC)).data.type).toBe('basic');
+
+        const signed = await signRefundRequest(h, order.id, FUNDER);
+        expect(signed.message).toContain(`refundTo=${FUNDER}`);
+        const result = await submitSignedRefundRequest(h.deps, { orderId: order.id, ...signed });
+        expect(result.ok).toBe(true);
+      });
+
+      it('ignores a later transfer to the old address whose data imitates a creation naming someone else', async () => {
+        const h = makeHarness();
+        h.chain.createHtlc(HTLC, FUNDER, NIMIQ_PAY_COSIGNER);
+        const order = await createPaidOrder(h, { payer: HTLC });
+        h.chain.closeHtlc(HTLC);
+        // An attacker sends an ordinary transfer to the now-basic address, newer than the creation,
+        // carrying 82 bytes that parse as creation data with themselves as the sender.
+        const forged = `${addressToHex(OTHER)}${addressToHex(NIMIQ_PAY_COSIGNER)}01${'0'.repeat(64)}01${'0'.repeat(16)}`;
+        h.chain.include({ from: OTHER, to: HTLC, value: 1, dataHex: forged, timestamp: h.clock.nowMs() });
+        h.chain.include({ from: OTHER, to: HTLC, value: 1, dataHex: forged, toType: ACCOUNT_TYPE.HTLC, timestamp: h.clock.nowMs() + 1, blockNumber: h.chain.height + 1 });
+
+        const issued = await issueRefundChallenge(h.deps, order.id);
+        expect(issued.ok).toBe(true);
+        if (!issued.ok) return;
+        expect(issued.challenge.refundTo).toBe(FUNDER);
+      });
+
+      it('refuses, rather than naming the HTLC address, when the creation cannot be found', async () => {
+        const h = makeHarness();
+        h.chain.setHtlc(HTLC, FUNDER); // no creation transaction in the history
+        const order = await createPaidOrder(h, { payer: HTLC });
+        h.chain.closeHtlc(HTLC);
+
+        const issued = await issueRefundChallenge(h.deps, order.id);
+        expect(issued.ok).toBe(false);
+        if (issued.ok) return;
+        expect(issued.reason).toBe('unrefundable_payer');
+      });
+
+      it('records the payment from an HTLC with fromType 2, as the mainnet RPC does', async () => {
+        const h = makeHarness();
+        h.chain.createHtlc(HTLC, FUNDER, NIMIQ_PAY_COSIGNER);
+        const order = await createPaidOrder(h, { payer: HTLC });
+        expect(h.chain.get(order.paymentTxHash ?? '')?.fromType).toBe(ACCOUNT_TYPE.HTLC);
+      });
+    });
   });
 
-  it('issues no refund request when the payer is an account it cannot refund', async () => {
+  it('issues no refund request when the payment came from an account kind it cannot refund', async () => {
     const h = makeHarness();
     const order = await createPaidOrder(h);
     const inner = h.deps.chain;
+    // The payment record says a staking contract paid.
     const staking: ChainReader = {
+      getBlockNumber: () => inner.getBlockNumber(),
+      getAccountByAddress: (address) => inner.getAccountByAddress(address),
+      getTransactionByHash: async (hash) => {
+        const read = await inner.getTransactionByHash(hash);
+        return { ...read, data: read.data && { ...read.data, fromType: ACCOUNT_TYPE.STAKING } };
+      },
+      getTransactionsByAddress: (address, max, startAt) =>
+        inner.getTransactionsByAddress(address, max, startAt),
+    };
+
+    const issued = await issueRefundChallenge({ ...h.deps, chain: staking }, order.id);
+    expect(issued.ok).toBe(false);
+    if (issued.ok) return;
+    expect(issued.reason).toBe('unrefundable_payer');
+  });
+
+  it('falls back to the account kind when the payment record carries no type, and still refuses staking', async () => {
+    const h = makeHarness();
+    const order = await createPaidOrder(h);
+    const inner = h.deps.chain;
+    const legacy: ChainReader = {
       getBlockNumber: () => inner.getBlockNumber(),
       getAccountByAddress: async (address) => ({
         data: { address, balance: 1, type: 'staking' },
         fetchedAtMs: h.clock.nowMs(),
         source: 'network',
       }),
-      getTransactionByHash: (hash) => inner.getTransactionByHash(hash),
+      getTransactionByHash: async (hash) => {
+        const read = await inner.getTransactionByHash(hash);
+        if (read.data === null) return read;
+        const { fromType: _fromType, toType: _toType, flags: _flags, ...untyped } = read.data;
+        return { ...read, data: untyped };
+      },
       getTransactionsByAddress: (address, max, startAt) =>
         inner.getTransactionsByAddress(address, max, startAt),
     };
 
-    const issued = await issueRefundChallenge({ ...h.deps, chain: staking }, order.id);
+    const issued = await issueRefundChallenge({ ...h.deps, chain: legacy }, order.id);
     expect(issued.ok).toBe(false);
     if (issued.ok) return;
     expect(issued.reason).toBe('unrefundable_payer');
@@ -433,6 +515,46 @@ describe('merchant-funded refunds', () => {
       expect(settled.status).toBe('refunded');
       expect(settled.order?.state).toBe('REFUNDED');
       expect(settled.execution?.refundTxHash).toBe(sent.hash);
+    });
+
+    it('settles a refund that emptied the shop HTLC, which then no longer reads as one (GAPS N30)', async () => {
+      const h = makeHarness();
+      h.chain.createHtlc(SHOP_HTLC, SHOP, 'NQ14 LU5R UH54 92SH GEN4 U63C SV4V 7N49 YYU4');
+      const { order, execution } = await approvedMerchantOrder(h);
+
+      const sent = h.chain.include({
+        from: SHOP_HTLC,
+        to: execution.refundTo,
+        value: execution.amountLuna,
+        data: `RW1:R:${order.id}`,
+        timestamp: h.clock.nowMs(),
+      });
+      h.chain.closeHtlc(SHOP_HTLC);
+      h.chain.advanceHeight(h.deps.config.minConfirmations);
+
+      const settled = await settleRefund(h.deps, order.id);
+      expect(settled.status).toBe('refunded');
+      expect(settled.execution?.refundTxHash).toBe(sent.hash);
+    });
+
+    it('does not accept a refund from a closed HTLC that somebody else created', async () => {
+      const h = makeHarness();
+      h.chain.createHtlc(SHOP_HTLC, OTHER, 'NQ14 LU5R UH54 92SH GEN4 U63C SV4V 7N49 YYU4');
+      const { order, execution } = await approvedMerchantOrder(h);
+
+      h.chain.include({
+        from: SHOP_HTLC,
+        to: execution.refundTo,
+        value: execution.amountLuna,
+        data: `RW1:R:${order.id}`,
+        timestamp: h.clock.nowMs(),
+      });
+      h.chain.closeHtlc(SHOP_HTLC);
+      h.chain.advanceHeight(h.deps.config.minConfirmations);
+
+      const settled = await settleRefund(h.deps, order.id);
+      expect(settled.status).toBe('pending');
+      expect((await h.repo.getOrder(order.id))?.state).toBe('REFUND_APPROVED');
     });
 
     it('ignores a lookalike from a wallet the merchant does not control, and does not fail the order', async () => {

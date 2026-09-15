@@ -26,12 +26,16 @@ import { buildChallenge, checkChallengeAgainstOrder, parseChallenge } from './ch
 import { checkTreasuryCaps, describeCapDenial, type CapDenialReason } from './demo-treasury.js';
 import type { DomainDeps } from './deps.js';
 import {
+  ACCOUNT_TYPE,
   addressEquals,
   buildReference,
+  htlcSenderFromCreationData,
   normalizeAddress,
   normalizeTxHash,
   parseReferenceFromHex,
+  type RpcTransaction,
 } from './nimiq.js';
+import { ChainUnavailableError } from './ports.js';
 import type { Order, RefundChallenge, RefundExecution } from './types.js';
 import { describeMismatch, verifyRefund, type Mismatch } from './verify.js';
 import { UniqueViolationError } from '../db/repository.js';
@@ -51,7 +55,7 @@ export type IssueChallengeResult =
 export type RefundDestination = { ok: true; address: string } | { ok: false; detail: string };
 
 /**
- * The wallet a refund for this payer can land in, read from the chain.
+ * The wallet a refund for this payment can land in, read from the chain.
  *
  * Nimiq Pay does not pay from the user's wallet directly. It pays out of an HTLC that the
  * user's wallet funded, and it signs with that funding wallet (observed 2026-09-14 on mainnet,
@@ -59,25 +63,81 @@ export type RefundDestination = { ok: true; address: string } | { ok: false; det
  * An HTLC rejects an incoming transfer — the first mainnet refund to one executed as failed —
  * so an HTLC payer resolves to its funder. A basic account is its own destination. Any other
  * account type is refused rather than guessed at.
+ *
+ * The payment transaction says what kind of account paid (`fromType`), and that stays true
+ * after the account changes. Nimiq Pay's HTLCs time out after about two weeks (`NQ66…` was
+ * created 2026-09-13 with a timeout of 2026-09-27), and a closed or emptied contract may no longer
+ * read as an HTLC — a never-used address reads as a basic account with balance 0. Reading only
+ * the account now would then name the HTLC address itself as the destination, which nobody can
+ * sign for (GAPS N30). So the payment record decides the kind, and `htlcSender` finds the funder
+ * even when the contract is gone.
  */
 export async function resolveRefundDestination(
   deps: DomainDeps,
   payerAddress: string,
+  paymentTxHash: string,
 ): Promise<RefundDestination> {
-  const account = (await deps.chain.getAccountByAddress(payerAddress)).data;
-  const type = account.type;
-  if (type === 'basic' || type === 0) {
-    const address = normalizeAddress(payerAddress);
-    return address ? { ok: true, address } : { ok: false, detail: `bad payer address ${payerAddress}` };
+  const payer = normalizeAddress(payerAddress);
+  if (payer === null) return { ok: false, detail: `bad payer address ${payerAddress}` };
+
+  const payment = (await deps.chain.getTransactionByHash(paymentTxHash)).data;
+  if (payment === null) {
+    // The payment was verified on chain when the order became PAID. Not finding it now is a
+    // node problem, not an answer, so it is "we do not know" rather than a refusal.
+    throw new ChainUnavailableError(`payment ${paymentTxHash} could not be read to resolve the refund destination`);
   }
-  if (type === 'htlc' || type === 2) {
+
+  if (payment.fromType === ACCOUNT_TYPE.BASIC) return { ok: true, address: payer };
+  if (payment.fromType === ACCOUNT_TYPE.HTLC) {
+    const funder = await htlcSender(deps, payer);
+    return funder
+      ? { ok: true, address: funder }
+      : { ok: false, detail: `htlc ${payer} has no readable sender, and its creation was not found` };
+  }
+  if (payment.fromType !== undefined) {
+    return { ok: false, detail: `payer ${payer} paid from a type ${payment.fromType} account` };
+  }
+
+  // A record without `fromType`: decide from the account as it reads now.
+  const account = (await deps.chain.getAccountByAddress(payer)).data;
+  if (account.type === 'basic' || account.type === ACCOUNT_TYPE.BASIC) return { ok: true, address: payer };
+  if (account.type === 'htlc' || account.type === ACCOUNT_TYPE.HTLC) {
     const funder = account.sender === undefined ? null : normalizeAddress(account.sender);
     return funder
       ? { ok: true, address: funder }
-      : { ok: false, detail: `htlc ${payerAddress} has no readable funder` };
+      : { ok: false, detail: `htlc ${payer} has no readable funder` };
   }
-  return { ok: false, detail: `payer ${payerAddress} is a ${String(type)} account` };
+  return { ok: false, detail: `payer ${payer} is a ${String(account.type)} account` };
 }
+
+/**
+ * The sender of an HTLC: from the contract while it exists, otherwise from the data of the
+ * transaction that created it, which the address's history keeps. Only the first page of history
+ * (50 transactions, newest first) is searched; an HTLC with more than that returns null, and the
+ * caller refuses rather than guesses.
+ */
+async function htlcSender(deps: DomainDeps, htlcAddress: string): Promise<string | null> {
+  const account = (await deps.chain.getAccountByAddress(htlcAddress)).data;
+  if ((account.type === 'htlc' || account.type === ACCOUNT_TYPE.HTLC) && account.sender !== undefined) {
+    return normalizeAddress(account.sender);
+  }
+  const history = await deps.chain.getTransactionsByAddress(htlcAddress, 50, null);
+  // Only the executed contract creation counts. Once the contract is gone anyone can send an
+  // ordinary transfer to its old address with data shaped like creation data naming themselves;
+  // that transfer declares `toType` 0 and no creation flag. A second creation at the same address
+  // cannot exist, because a contract's address is derived from its own creation transaction.
+  const creation = history.data.find(
+    (tx) =>
+      addressEquals(tx.to, htlcAddress) &&
+      tx.toType === ACCOUNT_TYPE.HTLC &&
+      ((tx.flags ?? 0) & CONTRACT_CREATION_FLAG) !== 0 &&
+      tx.executionResult === true,
+  );
+  return creation ? htlcSenderFromCreationData(creation.recipientData) : null;
+}
+
+/** The transaction flag bit that marks a contract creation (observed `flags: 1`, 2026-09-15). */
+const CONTRACT_CREATION_FLAG = 1;
 
 export async function issueRefundChallenge(
   deps: DomainDeps,
@@ -97,7 +157,7 @@ export async function issueRefundChallenge(
     return { ok: false, reason: 'not_paid', detail: 'no verified payment on this order' };
   }
 
-  const destination = await resolveRefundDestination(deps, order.payerAddress);
+  const destination = await resolveRefundDestination(deps, order.payerAddress, order.paymentTxHash);
   if (!destination.ok) return { ok: false, reason: 'unrefundable_payer', detail: destination.detail };
 
   const nowMs = deps.clock.nowMs();
@@ -682,7 +742,7 @@ export async function settleRefund(deps: DomainDeps, orderId: string): Promise<S
       amountLuna: execution.amountLuna,
       networkId: order.networkId,
       minConfirmations: deps.config.minConfirmations,
-      expectedSender: (await isRefundSender(deps, read.data.from, execution.refunderAddress))
+      expectedSender: (await isRefundSender(deps, read.data, execution.refunderAddress))
         ? read.data.from
         : execution.refunderAddress,
     },
@@ -736,14 +796,22 @@ export async function settleRefund(deps: DomainDeps, orderId: string): Promise<S
 }
 
 /**
- * Whether `from` may send this refund: the refunder itself, or an HTLC the refunder funded,
- * which is how a merchant's refund leaves Nimiq Pay (GAPS N29).
+ * Whether this transaction's sender may send the refund: the refunder itself, or an HTLC the
+ * refunder funded, which is how a merchant's refund leaves Nimiq Pay (GAPS N29). The HTLC is
+ * recognised from the transaction's `fromType`, so a shop HTLC that the refund emptied still
+ * counts (GAPS N30).
  */
-async function isRefundSender(deps: DomainDeps, from: string, refunder: string): Promise<boolean> {
-  if (addressEquals(from, refunder)) return true;
-  const account = (await deps.chain.getAccountByAddress(from)).data;
-  const isHtlc = account.type === 'htlc' || account.type === 2;
-  return isHtlc && account.sender !== undefined && addressEquals(account.sender, refunder);
+async function isRefundSender(deps: DomainDeps, tx: RpcTransaction, refunder: string): Promise<boolean> {
+  if (addressEquals(tx.from, refunder)) return true;
+  if (tx.fromType !== undefined && tx.fromType !== ACCOUNT_TYPE.HTLC) return false;
+  if (tx.fromType === undefined) {
+    // A record without `fromType`: only an account that reads as an HTLC now can qualify.
+    const account = (await deps.chain.getAccountByAddress(tx.from)).data;
+    const isHtlc = account.type === 'htlc' || account.type === ACCOUNT_TYPE.HTLC;
+    return isHtlc && account.sender !== undefined && addressEquals(account.sender, refunder);
+  }
+  const sender = await htlcSender(deps, tx.from);
+  return sender !== null && addressEquals(sender, refunder);
 }
 
 /**
@@ -763,7 +831,7 @@ async function findMerchantRefund(
     const ref = parseReferenceFromHex(tx.recipientData);
     if (ref === null || `${ref.version}:${ref.kind}:${ref.orderId}` !== reference) continue;
     if (!addressEquals(tx.to, execution.refundTo) || tx.value !== execution.amountLuna) continue;
-    if (!(await isRefundSender(deps, tx.from, execution.refunderAddress))) continue;
+    if (!(await isRefundSender(deps, tx, execution.refunderAddress))) continue;
     return { data: tx.hash, fetchedAtMs: page.fetchedAtMs };
   }
   return { data: null, fetchedAtMs: page.fetchedAtMs };
