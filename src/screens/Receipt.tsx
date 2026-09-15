@@ -145,7 +145,7 @@ export function ReceiptScreen({ orderId }: { orderId: string }) {
             <Kv label="Source">
               {execution.source === 'DEMO_TREASURY'
                 ? 'Demo Store treasury (capped)'
-                : "Merchant's own wallet"}
+                : "The shop's own wallet"}
             </Kv>
             <Kv label="Verified transaction">
               {execution.refundTxHash ? (

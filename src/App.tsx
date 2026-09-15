@@ -5,7 +5,14 @@ import { RefundScreen } from './screens/Refund';
 import { ReceiptScreen } from './screens/Receipt';
 import { MerchantScreen } from './screens/Merchant';
 import { PayScreen } from './screens/Pay';
-import { isFakeWallet } from './wallet';
+import { hasNimiqPay, isFakeWallet } from './wallet';
+
+/**
+ * What Rewind keeps, said on every screen before anyone pays, signs or registers a shop. The
+ * rules disqualify data collection without clear disclosure, and this is the whole of it.
+ */
+export const DATA_NOTICE =
+  'Rewind keeps what links a payment to its refund on its server: order amounts and labels, shop names, wallet addresses, signed requests and transaction hashes. Addresses and transactions are public on the Nimiq chain. This browser also remembers your orders and your shop.';
 
 /**
  * Routing, without a router. Six screens and one optional id is not worth a dependency.
@@ -119,9 +126,17 @@ export function App() {
 
       {walletResolved && isFakeWallet() ? (
         <div style={{ padding: '8px 16px 0' }}>
-          <div className="banner banner-warn">
+          <div className="banner banner-warn" data-testid="dev-wallet-banner">
             Development mode. No Nimiq Pay provider is present, so a fake wallet and a fake
             chain are in use. Nothing on this screen is real NIM.
+          </div>
+        </div>
+      ) : walletResolved && !hasNimiqPay() ? (
+        <div style={{ padding: '8px 16px 0' }}>
+          <div className="banner banner-warn" data-testid="open-in-nimiq-pay">
+            Open Rewind inside the Nimiq Pay app to pay, sign or refund. This browser has no
+            Nimiq wallet, so nothing here can send NIM. Orders and receipts still show what the
+            chain says.
           </div>
         </div>
       ) : null}
@@ -142,8 +157,11 @@ export function App() {
       ) : null}
 
       <footer className="foot">
-        A refund here is a new, verified transaction that a merchant approved. NIM payments are
-        not reversible, and Rewind does not pretend otherwise.
+        <p>
+          A refund here is a new, verified transaction that a merchant approved. NIM payments are
+          not reversible, and Rewind does not pretend otherwise.
+        </p>
+        <p data-testid="data-notice">{DATA_NOTICE}</p>
       </footer>
     </div>
   );

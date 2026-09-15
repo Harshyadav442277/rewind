@@ -11,7 +11,7 @@ import { useCallback, useState } from 'react';
 import { api, type CreateOrderInput } from './api';
 import { navigate } from './App';
 import { rememberOrder } from './storage';
-import { getWallet } from './wallet';
+import { getWallet, hasNimiqPay, isFakeWallet, NO_WALLET_MESSAGE } from './wallet';
 
 export const LUNA_PER_NIM = 100_000;
 /** The server's cap on a merchant order (`api/orders.ts`): 1 NIM. */
@@ -80,9 +80,15 @@ export function useOrderPayment() {
 
   /** Left out, `input` creates the single Demo Store item. */
   const pay = useCallback(async (input?: CreateOrderInput) => {
-    setPhase('working');
     setError(null);
     setUnpaidOrderId(null);
+    if (!hasNimiqPay() && !isFakeWallet()) {
+      // A browser with no wallet cannot pay, so no order is created for it.
+      setError(NO_WALLET_MESSAGE);
+      setPhase('error');
+      return;
+    }
+    setPhase('working');
     try {
       setStep('Creating the order…');
       const { order } = await api.createOrder(input);

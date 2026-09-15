@@ -67,7 +67,7 @@ export function stepsFor(status: OrderStatus): Step[] {
       label: 'Refund request signed',
       sub: status.signedRequest?.signerAddress
         ? `signed by ${status.signedRequest.signerAddress}`
-        : 'You prove you control the paying wallet.',
+        : 'You prove you control the wallet the refund goes back to.',
       status: mark(3),
     },
     {

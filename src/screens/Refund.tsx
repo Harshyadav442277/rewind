@@ -10,6 +10,8 @@ type Phase = 'loading' | 'ready' | 'signing' | 'submitted' | 'cancelled' | 'erro
 export function RefundScreen({ orderId }: { orderId: string }) {
   const [phase, setPhase] = useState<Phase>('loading');
   const [challenge, setChallenge] = useState<ChallengeView | null>(null);
+  /** Who sends the refund: the Demo Store's treasury, or a shop from its own wallet. */
+  const [refundSource, setRefundSource] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   /** The API's own words for a rejected signature, shown as-is. */
   const [apiDetail, setApiDetail] = useState<string | null>(null);
@@ -22,6 +24,7 @@ export function RefundScreen({ orderId }: { orderId: string }) {
     try {
       const response = await api.requestChallenge(orderId);
       setChallenge(response.challenge);
+      setRefundSource(response.order?.refundSource ?? null);
       setPhase('ready');
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -91,10 +94,20 @@ export function RefundScreen({ orderId }: { orderId: string }) {
     <main className="screen">
       <Card title="Request a refund">
         <p>
-          <strong>Sign with the wallet that paid.</strong> Rewind checks on chain which wallet
-          funded the payment, sends the refund back to it, and accepts only that wallet's
-          signature. Signing moves no NIM and costs no fee.
+          <strong>Sign with the wallet the refund goes back to.</strong> Rewind read the payment
+          on chain and found the wallet that funded it. The refund can only go to that wallet,
+          and only its signature is accepted. Signing moves no NIM and costs no fee.
         </p>
+        {refundSource === 'MERCHANT_WALLET' ? (
+          <p className="muted" data-testid="refund-sender">
+            The shop then approves the request and sends the refund from its own wallet.
+          </p>
+        ) : refundSource === 'DEMO_TREASURY' ? (
+          <p className="muted" data-testid="refund-sender">
+            The Demo Store approves a valid request automatically and sends the refund from its
+            treasury.
+          </p>
+        ) : null}
         {refundTo ? (
           <dl style={{ margin: '0 0 12px' }}>
             <Kv label="Refund goes to">
@@ -137,7 +150,7 @@ export function RefundScreen({ orderId }: { orderId: string }) {
       ) : null}
 
       {phase === 'submitted' ? (
-        <Banner tone="neutral">{note ?? 'Verified. Waiting for the merchant.'}</Banner>
+        <Banner tone="neutral">{note ?? 'Verified. Waiting for the shop.'}</Banner>
       ) : null}
 
       {phase === 'submitted' ? (

@@ -3,9 +3,9 @@ import { api, ApiError, type MerchantView } from '../api';
 import { navigate } from '../App';
 import { Banner, Card, Kv, Mono } from '../components/ui';
 import { clampLabel, formatNim, isPayableLuna, MAX_LINK_LUNA, useOrderPayment } from '../pay';
-import { getWallet, shortAddress } from '../wallet';
 
-export const PAY_REFUND_LINE = 'Refunds are approved by the shop and go back to the wallet that paid.';
+export const PAY_REFUND_LINE =
+  'Refunds are approved and sent by the shop, to the wallet that funded the payment.';
 
 /**
  * A payment link, opened by the buyer inside Nimiq Pay.
@@ -29,7 +29,6 @@ export function PayScreen({
   const [merchant, setMerchant] = useState<MerchantView | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [unknownMerchant, setUnknownMerchant] = useState(false);
-  const [payer, setPayer] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoadError(null);
@@ -51,19 +50,6 @@ export function PayScreen({
     void load();
   }, [load]);
 
-  useEffect(() => {
-    let cancelled = false;
-    void getWallet()
-      .listAccounts()
-      .then((outcome) => {
-        if (cancelled) return;
-        if (outcome.status === 'ok' && outcome.value[0]) setPayer(outcome.value[0]);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   const amountOk = isPayableLuna(amountLuna);
   const canPay = merchant !== null && amountOk;
 
@@ -79,7 +65,6 @@ export function PayScreen({
               </Kv>
               <Kv label="Amount">{amountOk ? formatNim(amountLuna) : '—'}</Kv>
               <Kv label="For">{label ?? merchant.name}</Kv>
-              {payer ? <Kv label="You are paying from">{shortAddress(payer)}</Kv> : null}
             </dl>
             <p style={{ marginTop: 10 }} data-testid="pay-refund-line">
               {PAY_REFUND_LINE}
