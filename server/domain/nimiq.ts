@@ -47,7 +47,21 @@ export interface RpcTransaction {
   validityStartHeight: number;
   executionResult: boolean;
   networkId: number | string;
+  /**
+   * The sender's and recipient's account types as the transaction declares them (`ACCOUNT_TYPE`).
+   * A transaction that executed had a `fromType` matching the real sender, so it records what
+   * the paying account WAS, even after that account is gone. Observed on mainnet 2026-09-15:
+   * Nimiq Pay payments carry `fromType` 2 (HTLC). Optional because a record without them is
+   * handled the older way, by reading the account now.
+   */
+  fromType?: number;
+  toType?: number;
+  /** 1 marks a contract creation (observed on the HTLC creation `9bf66ef2…`, 2026-09-15). */
+  flags?: number;
 }
+
+/** Account and transaction types as the RPC numbers them. */
+export const ACCOUNT_TYPE = { BASIC: 0, VESTING: 1, HTLC: 2, STAKING: 3 } as const;
 
 /**
  * An account record as returned by `getAccountByAddress`. Only the fields Rewind reads are
@@ -182,6 +196,67 @@ export function addressEquals(a: string, b: string): boolean {
   const na = normalizeAddress(a);
   const nb = normalizeAddress(b);
   return na !== null && nb !== null && na === nb;
+}
+
+/** Nimiq's base32 alphabet: digits and letters without I, O, W, Z. */
+const ADDRESS_ALPHABET = '0123456789ABCDEFGHJKLMNPQRSTUVXY';
+
+/**
+ * 20 address bytes as 40 hex characters → the grouped user-friendly address, with check digits.
+ * Agrees with `@nimiq/core` `Address.toHex()` / `toUserFriendlyAddress()` (nimiq-address.test.ts).
+ */
+export function addressFromHex(hex: string): string | null {
+  if (!/^[0-9a-fA-F]{40}$/.test(hex)) return null;
+  let bits = 0;
+  let value = 0;
+  let body = '';
+  for (let i = 0; i < 40; i += 2) {
+    value = (value << 8) | Number.parseInt(hex.slice(i, i + 2), 16);
+    bits += 8;
+    while (bits >= 5) {
+      body += ADDRESS_ALPHABET[(value >>> (bits - 5)) & 31];
+      bits -= 5;
+    }
+    value &= (1 << bits) - 1;
+  }
+  const check = String(98 - ibanMod97(`${body}NQ00`)).padStart(2, '0');
+  return normalizeAddress(`NQ${check}${body}`);
+}
+
+/** The inverse of `addressFromHex`: a valid address → its 20 bytes as lowercase hex. */
+export function addressToHex(address: string): string | null {
+  const normalized = normalizeAddress(address);
+  if (normalized === null) return null;
+  const body = normalized.replace(/ /g, '').slice(4);
+  let bits = 0;
+  let value = 0;
+  let hex = '';
+  for (const ch of body) {
+    value = (value << 5) | ADDRESS_ALPHABET.indexOf(ch);
+    bits += 5;
+    if (bits >= 8) {
+      hex += ((value >>> (bits - 8)) & 255).toString(16).padStart(2, '0');
+      bits -= 8;
+      value &= (1 << bits) - 1;
+    }
+  }
+  return hex.length === 40 ? hex : null;
+}
+
+/**
+ * The sender named in an HTLC's creation data: `sender(20) · recipient(20) · hash algorithm(1) ·
+ * hash root(32 or 64) · hash count(1) · timeout(8)`. Checked against the mainnet creation of
+ * `NQ66…7M05` (tx `9bf66ef2…`, 82 bytes, algorithm 1, sender `NQ87…MUXR`), 2026-09-15.
+ * The HTLC's sender is the wallet that can reclaim it, which is where a refund must go.
+ */
+export function htlcSenderFromCreationData(recipientDataHex: string | undefined | null): string | null {
+  if (!recipientDataHex || !isHex(recipientDataHex)) return null;
+  const bytes = recipientDataHex.length / 2;
+  const algorithm = Number.parseInt(recipientDataHex.slice(80, 82), 16);
+  // Blake2b (1) and SHA-256 (3) roots are 32 bytes; SHA-512 (4) is 64.
+  const expected = algorithm === 1 || algorithm === 3 ? 82 : algorithm === 4 ? 114 : -1;
+  if (bytes !== expected) return null;
+  return addressFromHex(recipientDataHex.slice(0, 40));
 }
 
 // ---------------------------------------------------------------------------
