@@ -6,23 +6,24 @@
  * object — lands on exactly one of `ok` / `cancelled` / `error`, and that a cancel is never
  * mistaken for a failure or the other way round.
  *
- * What it does NOT prove: anything about Nimiq Pay. No wallet has run this code. The stub is
- * built from `@nimiq/mini-app-sdk@0.1.0`'s `dist/provider.d.ts`, which is a type declaration,
- * not an observation.
+ * What it does NOT prove: the exact values Nimiq Pay returns for a cancelled dialog or a send.
+ * This adapter has paid and signed inside Nimiq Pay, but those raw values were not logged. The
+ * stub is built from `@nimiq/mini-app-sdk@0.1.0`'s `dist/provider.d.ts`, which is a type
+ * declaration, not an observation.
  */
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   classifySendResult,
   FakeWallet,
-  FAKE_PAYER_ADDRESS,
   getWallet,
+  hasNimiqPay,
   isFakeWallet,
   looksLikeTxHash,
   NimiqPayWallet,
+  NO_WALLET_MESSAGE,
   outcomeFromThrown,
   resetWallet,
-  shortAddress,
 } from './wallet';
 
 const HASH = 'a'.repeat(64);
@@ -67,14 +68,6 @@ describe('classifying what a send returns', () => {
 });
 
 describe('NimiqPayWallet result mapping', () => {
-  it('returns ok with the accounts the wallet lists', async () => {
-    installProvider({ listAccounts: async () => [FAKE_PAYER_ADDRESS, 'NQ11 ABCD'] });
-    await expect(new NimiqPayWallet().listAccounts()).resolves.toEqual({
-      status: 'ok',
-      value: [FAKE_PAYER_ADDRESS, 'NQ11 ABCD'],
-    });
-  });
-
   it('maps a RESOLVED ErrorResponse that reads like a cancel to cancelled', async () => {
     installProvider({
       sign: async () => ({ error: { type: 'USER_CANCELED', message: 'User canceled the request' } }),
@@ -191,7 +184,7 @@ describe('NimiqPayWallet result mapping', () => {
   });
 
   it('reports an error, not a crash, when there is no provider at all', async () => {
-    await expect(new NimiqPayWallet().listAccounts()).resolves.toMatchObject({ status: 'error' });
+    await expect(new NimiqPayWallet().sign('x')).resolves.toMatchObject({ status: 'error' });
   });
 });
 
@@ -214,10 +207,6 @@ describe('outcomeFromThrown', () => {
 describe('FakeWallet parity', () => {
   it('has the same three outcomes and can be told to cancel', async () => {
     const wallet = new FakeWallet();
-    await expect(wallet.listAccounts()).resolves.toEqual({
-      status: 'ok',
-      value: [FAKE_PAYER_ADDRESS],
-    });
     wallet.cancelNext();
     await expect(wallet.sign('x')).resolves.toMatchObject({ status: 'cancelled' });
   });
@@ -249,24 +238,38 @@ describe('FakeWallet parity', () => {
 });
 
 describe('wallet selection', () => {
-  it('uses the fake wallet when no provider is present, and says so', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('uses the fake wallet in a development build when no provider is present, and says so', () => {
+    expect(import.meta.env.DEV).toBe(true);
+    expect(hasNimiqPay()).toBe(false);
     expect(isFakeWallet()).toBe(true);
     expect(getWallet()).toBeInstanceOf(FakeWallet);
   });
 
   it('uses the real adapter as soon as a provider exists', () => {
-    installProvider({ listAccounts: async () => [] });
+    installProvider({ sign: async () => ({ publicKey: 'aa', signature: 'bb' }) });
+    expect(hasNimiqPay()).toBe(true);
     expect(isFakeWallet()).toBe(false);
     expect(getWallet()).toBeInstanceOf(NimiqPayWallet);
   });
-});
 
-describe('shortAddress', () => {
-  it('keeps enough of an address to tell two apart', () => {
-    expect(shortAddress(FAKE_PAYER_ADDRESS)).toBe('NQ64P4…0001');
-  });
+  it('never uses the fake wallet in a production build, and tells the user to open Nimiq Pay', async () => {
+    vi.stubEnv('DEV', false);
+    const fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
 
-  it('leaves a short string alone', () => {
-    expect(shortAddress('NQ11 AB')).toBe('NQ11 AB');
+    expect(isFakeWallet()).toBe(false);
+    const wallet = getWallet();
+    expect(wallet).toBeInstanceOf(NimiqPayWallet);
+    await expect(wallet.sendPayment({ recipient: 'NQ11', value: 1, data: 'x' })).resolves.toEqual({
+      status: 'error',
+      message: NO_WALLET_MESSAGE,
+    });
+    await expect(wallet.sign('text')).resolves.toMatchObject({ status: 'error' });
+    // Nothing was sent to the development fake chain, which a deployment does not have.
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 });

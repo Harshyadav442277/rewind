@@ -2,10 +2,11 @@
  * The only place the app talks to a wallet.
  *
  * Inside Nimiq Pay the provider is injected as `window.nimiq`; the type of that global comes
- * from `@nimiq/mini-app-sdk` itself, so it is not re-declared here. Outside Nimiq Pay — a
- * laptop browser during development — there is no provider, so `FakeWallet` stands in and
- * drives the server's development fake chain. `isFakeWallet()` is what the UI uses to say so
- * out loud rather than pretending.
+ * from `@nimiq/mini-app-sdk` itself, so it is not re-declared here. Outside Nimiq Pay in a
+ * development build — a laptop browser running `npm run dev` — there is no provider, so
+ * `FakeWallet` stands in and drives the server's development fake chain, and `isFakeWallet()`
+ * lets the UI say so. A production build never uses the fake: without a provider every wallet
+ * call answers "open this in Nimiq Pay", because the deployed server has no fake chain to drive.
  *
  * Facts read directly from the installed SDK typings (`@nimiq/mini-app-sdk@0.1.0`,
  * `dist/provider.d.ts`), which differ from the design notes in two ways worth knowing:
@@ -29,9 +30,12 @@
  * pattern-match an error message to find out whether money moved. `error` means the wallet
  * refused or broke; `cancelled` means the user said no and NOTHING was sent.
  *
- * UNVERIFIED: none of the real-provider path has been run inside Nimiq Pay from this
- * repository. The result mapping below is tested against a stubbed `window.nimiq`
- * (`wallet.test.ts`), which proves the mapping and nothing about the wallet.
+ * Observed inside Nimiq Pay on Android (2026-09-13 and 2026-09-14): `sign` and
+ * `sendBasicTransactionWithData` ran against production and a local server, and the payments
+ * and signatures they produced were verified on chain and server-side. What a
+ * cancelled dialog returns, and the raw string a send returns, were not logged, so the
+ * cancellation and result mapping below is still proven only against a stubbed `window.nimiq`
+ * (`wallet.test.ts`).
  */
 
 import type { ErrorResponse, SignatureResult } from '@nimiq/mini-app-sdk';
@@ -65,9 +69,12 @@ export type WalletOutcome<T> =
   | { status: 'cancelled'; message: string }
   | { status: 'error'; message: string; detail?: string };
 
+/**
+ * No `listAccounts`: Nimiq Pay pays out of a payment contract rather than from the first listed
+ * account, so a listed account is not "the wallet that pays", and the refund destination comes
+ * from the chain instead.
+ */
 export interface WalletAdapter {
-  /** Which account(s) the wallet will pay from, so the UI can say "you are paying from NQ…". */
-  listAccounts(): Promise<WalletOutcome<string[]>>;
   sign(message: string): Promise<WalletOutcome<SignatureResult>>;
   sendPayment(request: SendPaymentRequest): Promise<WalletOutcome<SentPayment>>;
 }
@@ -142,7 +149,7 @@ async function attempt<T>(run: () => Promise<T | ErrorResponse>): Promise<Wallet
 }
 
 /** The address the FakeWallet pays from. Shape-valid, and not a wallet anyone holds. */
-export const FAKE_PAYER_ADDRESS = 'NQ64 P4YR 0000 0000 0000 0000 0000 0000 0001';
+const FAKE_PAYER_ADDRESS = 'NQ64 P4YR 0000 0000 0000 0000 0000 0000 0001';
 
 async function devCall(payload: Record<string, unknown>): Promise<Record<string, unknown>> {
   const response = await fetch('/api/dev/fake-chain', {
@@ -179,10 +186,6 @@ export class FakeWallet implements WalletAdapter {
     return cancelling;
   }
 
-  async listAccounts(): Promise<WalletOutcome<string[]>> {
-    return { status: 'ok', value: [FAKE_PAYER_ADDRESS] };
-  }
-
   async sign(message: string): Promise<WalletOutcome<SignatureResult>> {
     if (this.takeCancel()) {
       return { status: 'cancelled', message: 'You cancelled the wallet dialog.' };
@@ -211,12 +214,6 @@ export class FakeWallet implements WalletAdapter {
 }
 
 export class NimiqPayWallet implements WalletAdapter {
-  async listAccounts(): Promise<WalletOutcome<string[]>> {
-    const provider = getProvider();
-    if (!provider) return noProvider();
-    return attempt(() => provider.listAccounts());
-  }
-
   async sign(message: string): Promise<WalletOutcome<SignatureResult>> {
     const provider = getProvider();
     if (!provider) return noProvider();
@@ -255,35 +252,40 @@ function getProvider(): Provider | undefined {
   return typeof window === 'undefined' ? undefined : window.nimiq;
 }
 
+export const NO_WALLET_MESSAGE =
+  'There is no Nimiq wallet in this browser. Open Rewind inside the Nimiq Pay app to pay, sign or refund.';
+
 function noProvider<T>(): WalletOutcome<T> {
-  return { status: 'error', message: 'No Nimiq wallet is available on this device.' };
+  return { status: 'error', message: NO_WALLET_MESSAGE };
 }
 
 let fake: FakeWallet | null = null;
 let real: NimiqPayWallet | null = null;
 
+/** True when Nimiq Pay has injected its provider into this page. */
+export function hasNimiqPay(): boolean {
+  return getProvider() !== undefined;
+}
+
+/**
+ * True only in a development build with no provider, where the fake wallet drives the dev
+ * server's fake chain. A production build answers false, so it never pretends to have a wallet.
+ */
 export function isFakeWallet(): boolean {
-  return getProvider() === undefined;
+  return !hasNimiqPay() && import.meta.env.DEV;
 }
 
 export function getWallet(): WalletAdapter {
-  if (!isFakeWallet()) {
-    real ??= new NimiqPayWallet();
-    return real;
+  if (isFakeWallet()) {
+    fake ??= new FakeWallet();
+    return fake;
   }
-  fake ??= new FakeWallet();
-  return fake;
+  real ??= new NimiqPayWallet();
+  return real;
 }
 
 /** Test aid, and the only way to clear the memoised adapters. */
 export function resetWallet(): void {
   fake = null;
   real = null;
-}
-
-/** Shortens an address for a "you are paying from NQ…" line without hiding which one it is. */
-export function shortAddress(address: string): string {
-  const compact = address.replace(/\s+/g, '');
-  if (compact.length <= 12) return address;
-  return `${compact.slice(0, 6)}…${compact.slice(-4)}`;
 }

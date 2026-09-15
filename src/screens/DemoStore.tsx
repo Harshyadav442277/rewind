@@ -4,7 +4,6 @@ import { hashFor, navigate } from '../App';
 import { Banner, Card, Kv, Mono, timeAgo } from '../components/ui';
 import { formatNim, useOrderPayment } from '../pay';
 import { readOrders } from '../storage';
-import { getWallet, shortAddress } from '../wallet';
 
 const ITEM = { label: 'Refund Test — 0.01 NIM', amountLuna: 1_000 };
 
@@ -16,11 +15,20 @@ const ITEM = { label: 'Refund Test — 0.01 NIM', amountLuna: 1_000 };
 export const AUTO_APPROVE_DISCLOSURE =
   'Demo Store automatically approves valid 0.01 NIM refund requests so you can test the complete flow without another person';
 
+/**
+ * Where a refund lands, in the buyer's terms. Nimiq Pay has been seen paying out of a payment
+ * contract (an HTLC) funded by the user's wallet, and an HTLC cannot receive a refund, so the
+ * server resolves the destination from the chain (`resolveRefundDestination`): a basic account
+ * is refunded itself, an HTLC's funder is refunded instead. Neither is known before the payment
+ * is on chain, so no screen names an address before then.
+ */
+export const REFUND_DESTINATION_NOTE =
+  'The refund goes to the wallet that funded the payment, read from the chain. When Nimiq Pay pays out of a payment contract, that is the wallet that funded the contract.';
+
 export function DemoStoreScreen() {
   const { phase, error, step, unpaidOrderId, busy, pay } = useOrderPayment();
   const [health, setHealth] = useState<HealthView | null>(null);
   const [healthError, setHealthError] = useState<string | null>(null);
-  const [payer, setPayer] = useState<string | null>(null);
 
   const loadHealth = useCallback(async () => {
     try {
@@ -35,19 +43,6 @@ export function DemoStoreScreen() {
     void loadHealth();
   }, [loadHealth]);
 
-  useEffect(() => {
-    let cancelled = false;
-    void getWallet()
-      .listAccounts()
-      .then((outcome) => {
-        if (cancelled) return;
-        if (outcome.status === 'ok' && outcome.value[0]) setPayer(outcome.value[0]);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   const paused = health?.demoPaused ?? false;
 
   return (
@@ -60,16 +55,15 @@ export function DemoStoreScreen() {
         <dl style={{ margin: 0 }}>
           <Kv label="Item">{ITEM.label}</Kv>
           <Kv label="Price">0.01 NIM ({ITEM.amountLuna} Luna)</Kv>
-          <Kv label="Refund policy">Full refund only, back to the wallet that paid</Kv>
-          {payer ? <Kv label="You are paying from">{shortAddress(payer)}</Kv> : null}
+          <Kv label="Refund policy">Full refund only, to the wallet that funded the payment</Kv>
         </dl>
       </Card>
 
       <Card title="Refund policy">
         <p data-testid="auto-approve-disclosure">{AUTO_APPROVE_DISCLOSURE}.</p>
-        <p className="muted">
-          A refund is a new transaction that the Demo Store sends back to the wallet that
-          paid, and Rewind only calls it done once the chain says so.
+        <p className="muted" data-testid="refund-destination">
+          {REFUND_DESTINATION_NOTE} A refund is a new transaction from the Demo Store, and
+          Rewind only calls it done once the chain says so.
         </p>
       </Card>
 

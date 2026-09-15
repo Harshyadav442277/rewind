@@ -17,7 +17,7 @@ function initMiniApp(): void {
       console.info('[rewind] Nimiq Pay provider ready');
     })
     .catch((err: unknown) => {
-      console.info('[rewind] no Nimiq Pay provider, using the development FakeWallet:', err);
+      console.info('[rewind] no Nimiq Pay provider:', err);
     })
     .finally(() => {
       window.dispatchEvent(new Event(WALLET_READY_EVENT));

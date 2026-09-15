@@ -20,7 +20,7 @@ import type { ChallengeView, ExecutionView, HealthView, OrderStatus, OrderView }
 
 // --- mocks -----------------------------------------------------------------
 
-const { apiMock, walletMock, FakeApiError } = vi.hoisted(() => {
+const { apiMock, walletMock, walletFlags, FakeApiError } = vi.hoisted(() => {
   class FakeApiError extends Error {
     constructor(
       readonly code: string,
@@ -47,10 +47,10 @@ const { apiMock, walletMock, FakeApiError } = vi.hoisted(() => {
       getMerchant: vi.fn(),
     },
     walletMock: {
-      listAccounts: vi.fn(),
       sign: vi.fn(),
       sendPayment: vi.fn(),
     },
+    walletFlags: { fake: true, nimiqPay: false },
   };
 });
 
@@ -58,11 +58,13 @@ vi.mock('../api', () => ({ api: apiMock, ApiError: FakeApiError }));
 
 vi.mock('../wallet', () => ({
   getWallet: () => walletMock,
-  isFakeWallet: () => true,
-  shortAddress: (a: string) => a,
+  isFakeWallet: () => walletFlags.fake,
+  hasNimiqPay: () => walletFlags.nimiqPay,
+  NO_WALLET_MESSAGE: 'There is no Nimiq wallet in this browser.',
 }));
 
-import { AUTO_APPROVE_DISCLOSURE, DemoStoreScreen } from './DemoStore';
+import { App, DATA_NOTICE, WALLET_READY_EVENT } from '../App';
+import { AUTO_APPROVE_DISCLOSURE, DemoStoreScreen, REFUND_DESTINATION_NOTE } from './DemoStore';
 import { OrderScreen } from './Order';
 import { RefundScreen } from './Refund';
 import { REFUND_CLAIM, ReceiptScreen } from './Receipt';
@@ -168,9 +170,10 @@ let root: Root;
 
 beforeEach(() => {
   vi.clearAllMocks();
+  walletFlags.fake = true;
+  walletFlags.nimiqPay = false;
   window.localStorage.clear();
   window.location.hash = '';
-  walletMock.listAccounts.mockResolvedValue({ status: 'ok', value: ['NQ64 P4YR 0001'] });
   container = document.createElement('div');
   document.body.append(container);
   root = createRoot(container);
@@ -249,6 +252,26 @@ describe('Demo Store', () => {
     expect(text()).toContain('0.01 NIM');
     expect(byTestId('auto-approve-disclosure')?.textContent).toBe(`${AUTO_APPROVE_DISCLOSURE}.`);
     expect(buttonWith('Pay 0.01 NIM').disabled).toBe(false);
+  });
+
+  it('creates no order when this browser has no wallet to pay with', async () => {
+    walletFlags.fake = false;
+    walletFlags.nimiqPay = false;
+    apiMock.health.mockResolvedValue(HEALTH);
+    await render(<DemoStoreScreen />);
+    await click(buttonWith('Pay 0.01 NIM'));
+    expect(apiMock.createOrder).not.toHaveBeenCalled();
+    expect(walletMock.sendPayment).not.toHaveBeenCalled();
+    expect(text()).toContain('There is no Nimiq wallet in this browser.');
+  });
+
+  it('names no paying address before the chain is read, and says where a refund goes', async () => {
+    apiMock.health.mockResolvedValue(HEALTH);
+    await render(<DemoStoreScreen />);
+    // Nimiq Pay pays out of a payment contract, not from the first listed account, so the
+    // store must not show that account as "paying from".
+    expect(text()).not.toContain('paying from');
+    expect(byTestId('refund-destination')?.textContent).toContain(REFUND_DESTINATION_NOTE);
   });
 
   it('pauses the demo when the API says the treasury is below its floor', async () => {
@@ -403,9 +426,23 @@ describe('Refund request', () => {
 
   it('shows the wallet the refund goes back to and asks that wallet to sign', async () => {
     await render(<RefundScreen orderId={ORDER.id} />);
-    expect(text()).toContain('Sign with the wallet that paid');
+    expect(text()).toContain('Sign with the wallet the refund goes back to');
     expect(text()).toContain('Refund goes to');
     expect(text()).toContain('NQ64 P4YR');
+    expect(byTestId('refund-sender')?.textContent).toContain('Demo Store approves');
+  });
+
+  it('says a shop order is approved and sent by the shop, not by Rewind', async () => {
+    apiMock.requestChallenge.mockResolvedValue({
+      challenge: CHALLENGE,
+      order: { ...ORDER, refundSource: 'MERCHANT_WALLET', merchantId: 'w-shop' },
+      explain: '',
+    });
+    await render(<RefundScreen orderId={ORDER.id} />);
+    expect(byTestId('refund-sender')?.textContent).toContain(
+      'The shop then approves the request and sends the refund from its own wallet.',
+    );
+    expect(text()).not.toContain('Demo Store approves');
   });
 
   it('keeps the canonical text behind a "what am I signing" toggle', async () => {
@@ -864,6 +901,7 @@ describe('Pay', () => {
     expect(text()).toContain('0.025 NIM');
     expect(text()).toContain('Table 4');
     expect(byTestId('pay-refund-line')?.textContent).toBe(PAY_REFUND_LINE);
+    expect(text()).not.toContain('paying from');
 
     await click(buttonWith('Pay 0.025 NIM'));
     await settle();
@@ -926,6 +964,48 @@ describe('Pay', () => {
     await render(<PayScreen merchantId="demo-store" amountLuna={1_000} label={null} />);
     expect(window.location.hash).toBe('#/store');
     expect(hasButton(/^Pay /)).toBe(false);
+  });
+});
+
+// --- App shell ----------------------------------------------------------------
+
+describe('App shell', () => {
+  async function renderApp(): Promise<void> {
+    apiMock.health.mockResolvedValue(HEALTH);
+    await render(<App />);
+    await act(async () => {
+      window.dispatchEvent(new Event(WALLET_READY_EVENT));
+    });
+  }
+
+  it('tells a browser without Nimiq Pay to open the app there, not that it is in development mode', async () => {
+    walletFlags.fake = false;
+    walletFlags.nimiqPay = false;
+    await renderApp();
+    expect(byTestId('open-in-nimiq-pay')?.textContent).toContain('Open Rewind inside the Nimiq Pay app');
+    expect(byTestId('dev-wallet-banner')).toBeNull();
+    expect(text()).not.toContain('fake chain');
+  });
+
+  it('shows the development banner only when the fake wallet is in use', async () => {
+    walletFlags.fake = true;
+    await renderApp();
+    expect(byTestId('dev-wallet-banner')?.textContent).toContain('Development mode');
+    expect(byTestId('open-in-nimiq-pay')).toBeNull();
+  });
+
+  it('shows no wallet banner inside Nimiq Pay', async () => {
+    walletFlags.fake = false;
+    walletFlags.nimiqPay = true;
+    await renderApp();
+    expect(byTestId('dev-wallet-banner')).toBeNull();
+    expect(byTestId('open-in-nimiq-pay')).toBeNull();
+  });
+
+  it('discloses on every screen what Rewind stores', async () => {
+    await renderApp();
+    expect(byTestId('data-notice')?.textContent).toBe(DATA_NOTICE);
+    expect(DATA_NOTICE).toContain('wallet addresses');
   });
 });
 
