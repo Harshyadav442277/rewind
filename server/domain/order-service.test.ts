@@ -132,6 +132,68 @@ describe('payment verification', () => {
     expect(result.order.paymentTxHash).toBe(tx.hash);
   });
 
+  it('finds the real payment when the hinted hash does not exist on chain', async () => {
+    const h = makeHarness();
+    const order = await freshOrder(h);
+    // Anyone who knows the order id can post a hash that will never exist, before the buyer's
+    // client posts the real one.
+    const bogus = 'b'.repeat(64);
+    expect((await submitPaymentHint(h.deps, order.id, bogus)).ok).toBe(true);
+
+    const tx = h.chain.include({
+      from: PAYER,
+      to: order.merchantAddress,
+      value: AMOUNT_LUNA,
+      data: buildReference('P', order.id),
+      timestamp: h.clock.nowMs(),
+    });
+    h.chain.advanceHeight(h.deps.config.minConfirmations);
+
+    // The buyer's own hint arrives second. It is accepted as a no-op, not refused.
+    const second = await submitPaymentHint(h.deps, order.id, tx.hash);
+    expect(second.ok).toBe(true);
+    if (!second.ok) return;
+    expect(second.order.claimedPaymentTxHash).toBe(bogus);
+
+    const result = await verifyOrderPayment(h.deps, order.id);
+    expect(result.status).toBe('paid');
+    if (result.status !== 'paid') return;
+    expect(result.order.paymentTxHash).toBe(tx.hash);
+    expect(result.order.payerAddress).toBe(PAYER);
+  });
+
+  it('keeps waiting, without rejecting, when neither the hint nor the scan finds a payment', async () => {
+    const h = makeHarness();
+    const order = await freshOrder(h);
+    await submitPaymentHint(h.deps, order.id, 'c'.repeat(64));
+
+    const result = await verifyOrderPayment(h.deps, order.id);
+    expect(result.status).toBe('waiting');
+    if (result.status !== 'waiting') return;
+    expect(result.mismatch.kind).toBe('not_included');
+    expect((await h.deps.repo.getOrder(order.id))?.state).toBe('PAYMENT_PENDING');
+  });
+
+  it('does not accept a scanned payment that fails the acceptance predicate', async () => {
+    const h = makeHarness();
+    const order = await freshOrder(h);
+    await submitPaymentHint(h.deps, order.id, 'd'.repeat(64));
+    h.chain.include({
+      from: PAYER,
+      to: order.merchantAddress,
+      value: AMOUNT_LUNA + 1,
+      data: buildReference('P', order.id),
+      timestamp: h.clock.nowMs(),
+    });
+    h.chain.advanceHeight(h.deps.config.minConfirmations);
+
+    const result = await verifyOrderPayment(h.deps, order.id);
+    expect(result.status).toBe('rejected');
+    if (result.status !== 'rejected') return;
+    expect(result.mismatch.kind).toBe('value_mismatch');
+    expect(result.order.paymentTxHash).toBeNull();
+  });
+
   it('stays unavailable when the hash lookup fails and the scan finds nothing', async () => {
     const h = makeHarness();
     const order = await freshOrder(h);
