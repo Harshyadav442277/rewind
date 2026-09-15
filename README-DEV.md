@@ -186,8 +186,14 @@ applied. Do not expose `npm run dev` (it binds to the LAN) on an untrusted netwo
 
 Commands run on 2026-09-15, Windows 11, node v24.19.0, npm 11.13.0:
 
-- On `main` after PR #16 plus `DEMO.md`: `npm run build` (typecheck, then vite build) → built, main chunk 183.90 kB;
-  `npx vitest run` → Test Files 23 passed (23); Tests 406 passed | 4 skipped (410)
+- On this branch (after PR #18, wallet rejections): `npm run build` (typecheck, then vite build) → built, main chunk
+  184.54 kB; `npx vitest run` → Test Files 23 passed (23); Tests 427 passed | 4 skipped (431)
+- Production, inside Nimiq Pay on Android, 2026-09-15: Reject on the payment dialog and on the refund signature both
+  show the cancelled screens (after PR #18); a cancelled signature retried on the same request refunded order
+  `30ad84fdc286fb16` (`be9e77cf…`, block 61,675,196); a shop refund from a payment link was found on chain
+  (`0976d71a…`, block 61,673,898)
+- Production API, 14:18 UTC: a refund request signed by a key that is not the refund wallet → 400 `wrong_signer`, order
+  stayed PAID; an expired, already-used signed request replayed → 400, order stayed REFUNDED with one refund
 - Preview deployment of `main` `dbe867a` (`rewind-5af7nzl9t`, 07:32 UTC): 10 functions, none of them a test or the dev
   fake chain; its `/api/health` answered 200 in fake / memory mode, because `REWIND_REPO` and `REWIND_CHAIN` are
   production-only env vars, so the preview touched no production data

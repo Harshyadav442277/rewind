@@ -31,6 +31,14 @@ export type Route =
   | { name: 'merchant' }
   | { name: 'pay'; merchantId: string; amountLuna: number | null; label: string | null };
 
+/** The third tab, shown only while one of these screens is open. */
+const ROUTE_TAB_LABELS: Record<'order' | 'refund' | 'receipt' | 'pay', string> = {
+  order: 'Order',
+  refund: 'Refund',
+  receipt: 'Receipt',
+  pay: 'Pay',
+};
+
 export function parseHash(hash: string): Route {
   const raw = hash.replace(/^#\/?/, '');
   const queryAt = raw.indexOf('?');
@@ -120,7 +128,7 @@ export function App() {
         route.name === 'refund' ||
         route.name === 'receipt' ||
         route.name === 'pay' ? (
-          <button className="tab tab-active">{route.name}</button>
+          <button className="tab tab-active">{ROUTE_TAB_LABELS[route.name]}</button>
         ) : null}
       </nav>
 

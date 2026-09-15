@@ -78,11 +78,13 @@ export function stepsFor(status: OrderStatus): Step[] {
     },
     {
       label: 'Refund sent',
-      sub: status.execution?.intendedTxHash
-        ? 'Broadcast. Waiting for the chain to agree.'
-        : status.order.refundSource === 'MERCHANT_WALLET'
-          ? 'The shop sends it from its own wallet. Rewind finds it on chain by its reference.'
-          : 'Recorded before it is sent, so a crash cannot lose or repeat it.',
+      sub: status.execution?.refundTxHash
+        ? 'Sent, and found on chain.'
+        : status.execution?.intendedTxHash
+          ? 'Broadcast. Waiting for the chain to agree.'
+          : status.order.refundSource === 'MERCHANT_WALLET'
+            ? 'The shop sends it from its own wallet. Rewind finds it on chain by its reference.'
+            : 'Recorded before it is sent, so a crash cannot lose or repeat it.',
       status: mark(5),
     },
     {
