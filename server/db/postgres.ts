@@ -1,16 +1,16 @@
 /**
  * Postgres repository. The deployment target is Neon; the engine is ordinary Postgres.
  *
- * STATUS 2026-09-13: the SQL below and `schema.sql` are now executed by
- * `postgres.integration.test.ts` against a real Postgres engine embedded in the test process
- * (PGlite, WASM). What that proves: the schema applies, every statement parses and runs, the
- * compare-and-set clauses decide races the way the in-memory repository does, unique
- * violations surface as `UniqueViolationError`, BIGINT and TIMESTAMPTZ round-trip.
+ * The SQL below and `schema.sql` are executed by `postgres.integration.test.ts` against a real
+ * Postgres engine embedded in the test process (PGlite, WASM): the schema applies, every
+ * statement parses and runs, the compare-and-set clauses decide races the way the in-memory
+ * repository does, unique violations surface as `UniqueViolationError`, BIGINT and TIMESTAMPTZ
+ * round-trip. Production has run on Neon (PostgreSQL 18.6) through `neonExecutor` since
+ * 2026-09-14.
  *
- * What it still does NOT prove, and must not be claimed:
- *   - `neonExecutor` itself. No Neon endpoint has been contacted from this repository, so the
- *     HTTP driver's type parsing, its error shape and its failure modes remain assumptions.
- *   - Multi-session behaviour. PGlite runs a single backend, so lock contention between two
+ * Still not shown, and not to be claimed:
+ *   - the Neon driver's unique-violation error shape under a real race;
+ *   - multi-session behaviour. PGlite runs a single backend, so lock contention between two
  *     real connections is untested. Every guarantee here is decided inside one statement,
  *     which is why that gap is survivable, but it is a gap.
  */
@@ -580,10 +580,10 @@ export class PostgresRepository implements Repository {
 
   // -- merchant challenge nonces (gap S3) -----------------------------------
   //
-  // UNTESTED, like every other statement in this file. The three specific risks here:
-  // `expires_at_sec` is BIGINT so `num()` coerces a string back to a number; the primary-key
-  // violation on re-issue must surface as UniqueViolationError or an ordinary double-tap
-  // becomes a 500; and `consume` must return zero rows when it loses, never one.
+  // Pinned by the PGlite suite. The three specific risks here: `expires_at_sec` is BIGINT so
+  // `num()` coerces a string back to a number; the primary-key violation on re-issue must
+  // surface as UniqueViolationError or an ordinary double-tap becomes a 500; and `consume` must
+  // return zero rows when it loses, never one.
 
   async createMerchantNonce(row: MerchantNonce): Promise<MerchantNonce> {
     const sql = this.sql;

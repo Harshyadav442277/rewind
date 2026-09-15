@@ -1,12 +1,13 @@
 /**
  * Ports. Everything the domain needs from the outside world, and nothing else.
  *
- * No cryptography is implemented anywhere in `server/`. `SignatureVerifier` and
- * `RefundTxBuilder` are the seams where the two spikes plug in their real implementations:
- *   spikes/sign-verify  -> SignatureVerifier
- *   spikes/server-tx    -> RefundTxBuilder + TxBroadcaster
- * Until then the fakes in `fakes.ts` are the only implementations, and they prove logic,
- * not cryptography.
+ * No cryptography is implemented in `server/domain/`. The real implementations live beside it
+ * and follow the two spikes:
+ *   server/crypto/nimiq-signature-verifier.ts  -> SignatureVerifier   (spikes/sign-verify)
+ *   server/chain/treasury-broadcaster.ts       -> RefundTxBuilder + TxBroadcaster (spikes/server-tx)
+ *   server/chain/rpc-chain-reader.ts           -> ChainReader
+ * The fakes in `fakes.ts` implement the same ports for tests and the local dev loop; they prove
+ * logic, not cryptography.
  */
 
 import type { RpcAccount, RpcTransaction } from './nimiq.js';
@@ -28,13 +29,11 @@ export interface RandomSource {
  * Which signing preimage actually verified.
  *
  * `nimiq-signed-message` is what `WalletAccount::sign_message` in core-rs-albatross produces:
- *   sha256("Nimiq Signed Message:
-" + asciiDecimal(byteLength(message)) + message),
+ *   sha256("\x16Nimiq Signed Message:\n" + asciiDecimal(byteLength(message)) + message),
  * signed with Ed25519. `nimiq-connect-challenge` is the same construction with the keyguard's
- * second prefix "Nimiq Connect Challenge:
-". Both were proved end to end in
- * `spikes/sign-verify` on 2026-09-13; which one Nimiq Pay actually uses has NOT been observed
- * on a device, so the verifier accepts either and reports which one matched.
+ * second prefix "\x19Nimiq Connect Challenge:\n". Both were proved end to end in
+ * `spikes/sign-verify` on 2026-09-13. Nimiq Pay on Android signed with the first one on a
+ * device the same day; the verifier still accepts either and reports which one matched.
  */
 export type SignedMessageVariant = 'nimiq-signed-message' | 'nimiq-connect-challenge';
 
@@ -47,8 +46,8 @@ export interface SignatureVerifier {
    * Verifies `signatureHex` over the exact bytes of `message` under `publicKeyHex`, and
    * derives the Nimiq address of that public key.
    *
-   * The address it returns is the whole point: the caller compares it with the order's
-   * verified payer. A verifier that returns ok without deriving the address is useless here.
+   * The address it returns is the whole point: the caller compares it with the refund
+   * destination. A verifier that returns ok without deriving the address is useless here.
    */
   verify(message: string, publicKeyHex: string, signatureHex: string): Promise<SignatureVerification>;
 }
@@ -124,9 +123,13 @@ export class ChainUnavailableError extends Error {
 export interface ChainReader {
   getBlockNumber(): Promise<ChainRead<number>>;
   /**
-   * Balance and type of one address. Read-only, and used only by `GET /api/health` to show
-   * the Demo Store treasury balance and decide whether the demo is paused. Nothing in the
-   * money path reads it: a balance is not evidence that a transfer happened.
+   * Balance, type and, for an HTLC, funder of one address. Read-only. Two readers:
+   *  - `GET /api/health`, for the treasury balance and whether the demo is paused;
+   *  - the money path, for the account TYPE and HTLC funder only: `resolveRefundDestination`
+   *    decides where a refund may go, and `isRefundSender` accepts a shop's refund sent from an
+   *    HTLC the shop funded. A balance is never evidence that a transfer happened.
+   * A never-used address reads as `{ balance: 0, type: 'basic' }` on the public RPC (observed
+   * 2026-09-15), so "basic" does not prove an account has ever existed.
    */
   getAccountByAddress(address: string): Promise<ChainRead<RpcAccount>>;
   getTransactionByHash(hash: string): Promise<ChainRead<RpcTransaction | null>>;

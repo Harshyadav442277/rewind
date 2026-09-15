@@ -1,8 +1,10 @@
 -- Rewind — Neon Postgres schema.
 --
--- STATUS: UNTESTED. No database has been provisioned and this file has never been executed
--- against Postgres or anything else. Treat every statement as a draft until a migration run
--- is pasted into README-DEV.md.
+-- STATUS: applied to Neon (PostgreSQL 18.6) for production on 2026-09-14, and applied by
+-- `server/db/postgres.integration.test.ts` to an embedded Postgres on every test run. One later
+-- change reached Neon as a migration rather than a re-run of this file (2026-09-15, PR #6):
+-- `refund_executions_refund_to_not_self` was replaced by
+-- `refund_executions_treasury_refund_not_self`. Keep the two in step by hand.
 --
 -- The constraints below are not decoration. They are where the money safety actually lives:
 -- the application deliberately races into them and handles the violation, because a unique
@@ -211,11 +213,9 @@ CREATE INDEX IF NOT EXISTS demo_refunds_wallet_idx ON demo_refunds (wallet_addre
 CREATE INDEX IF NOT EXISTS demo_refunds_created_idx ON demo_refunds (created_at DESC);
 
 -- ---------------------------------------------------------------------------
--- seed: the built-in Demo Store
--- Replace the address before any real run. NQ07 0000 ... is a placeholder, not a wallet.
+-- merchants are not seeded here. The Demo Store row is inserted once per database with the
+-- treasury's own address and allow_treasury_refund TRUE (id 'demo-store'); every other
+-- merchant is created by a wallet signature through POST /api/merchant/register.
 -- ---------------------------------------------------------------------------
--- INSERT INTO merchants (id, name, address, allow_treasury_refund)
--- VALUES ('demo-store', 'Rewind Demo Store', 'NQ00 0000 0000 0000 0000 0000 0000 0000 0000', TRUE)
--- ON CONFLICT (id) DO NOTHING;
 
 COMMIT;

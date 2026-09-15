@@ -147,9 +147,10 @@ export function verifyPayment(expectation: TransferExpectation, tx: RpcTransacti
 }
 
 /**
- * The refund went back: `to` = the verified payer, `from` = the merchant wallet or the demo
- * treasury, data = `RW1:R:<orderId>`. `expectedSender` is required here; a refund from an
- * unexpected wallet is not this order's refund.
+ * The refund went back: `to` = the refund destination resolved from the chain, `from` = the
+ * demo treasury, the merchant wallet, or an HTLC the merchant funded; data = `RW1:R:<orderId>`.
+ * `expectedSender` is required here; a refund from an unexpected wallet is not this order's
+ * refund.
  */
 export function verifyRefund(
   expectation: TransferExpectation & { expectedSender: string },

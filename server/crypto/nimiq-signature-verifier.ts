@@ -14,9 +14,11 @@
  * (`client/src/SignMessagePrefix.ts`) carries a second prefix,
  * `"\x19Nimiq Connect Challenge:\n"`, so both are tried and the caller is told which matched.
  *
- * UNVERIFIED: which prefix Nimiq Pay's `sign(message)` actually uses. No signature produced by
- * a real wallet on a real device has ever been fed to this class. Accepting either prefix is
- * the hedge; it widens nothing, because the message bytes are still the exact challenge text.
+ * Observed on a device: Nimiq Pay's `sign(message)` on Android uses the "Nimiq Signed Message"
+ * prefix (the spike page's signature verified as that variant only, 2026-09-13), and this class
+ * then verified the refund signature on mainnet order `a002870307c998de` in production
+ * (2026-09-14). The connect-challenge prefix is still accepted; it widens nothing, because the
+ * message bytes are still the exact challenge text. iOS has not been observed.
  *
  * The spike's Windows/undici teardown workaround is deliberately NOT here. It reaches into an
  * undocumented undici symbol and belongs only in short-lived test helpers.
@@ -123,7 +125,7 @@ export class NimiqSignatureVerifier implements SignatureVerifier {
         } catch {
           matched = false;
         }
-        // The address is the point: the caller compares it with the order's verified payer.
+        // The address is the point: the caller compares it with the refund destination.
         if (matched) return { ok: true, address, variant };
       }
       return { ok: false, reason: 'bad_signature' };

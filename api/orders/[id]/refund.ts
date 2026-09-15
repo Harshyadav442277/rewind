@@ -27,7 +27,8 @@ import {
  * Accepts the signed refund request. Refuses, in this order: unreadable text, a nonce Rewind
  * never issued, text that differs by a byte from what was issued, a challenge that does not
  * match the order, an expired challenge, an unverifiable signature, a signature from a wallet
- * that is not the verified payer, and a nonce that has already been used.
+ * other than the refund destination read from the chain (the payer, or the wallet that funded
+ * the payer's HTLC), and a nonce that has already been used.
  *
  * Success moves the order to REFUND_REQUESTED. For every ordinary merchant that is where it
  * stops: a person approves in their own wallet, and only then is a refund reserved and sent.
@@ -36,7 +37,7 @@ import {
  * as many words. The Demo Store IS the merchant here, its policy is to approve a valid
  * refund request for its own item, and that policy is what lets one person walk the whole
  * flow without a second human. It is not an authentication hole: the buyer still had to
- * prove they own the paying wallet, the amount still has to pass the treasury caps, and the
+ * prove they own the wallet the refund goes to, the amount still has to pass the treasury caps, and the
  * refund is still only called REFUNDED from a verified chain record.
  */
 export default withErrors(async (req: ApiRequest, res: ApiResponse) => {

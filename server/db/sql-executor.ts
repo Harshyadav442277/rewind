@@ -45,16 +45,14 @@ export function taggedFor(executor: SqlExecutor): SqlTag {
 }
 
 /**
- * ============================ UNTESTED ============================
  * Production executor. Wraps `@neondatabase/serverless`'s HTTP driver.
  *
  * The driver's callable form takes `(text, params)` and resolves to rows, which is exactly
- * `SqlExecutor`. What is proven elsewhere is the SQL; what is NOT proven anywhere is this
- * function — no Neon endpoint has ever been contacted from this repository, so the HTTP
- * driver's own behaviour (type parsing of int8 and timestamptz, the shape of a unique
- * violation, connection failure) is still an assumption. The embedded-Postgres tests pin the
- * SQL and the row mapping; they cannot pin the driver.
- * ==================================================================
+ * `SqlExecutor`. It has run in production on Vercel against Neon since 2026-09-14: orders,
+ * merchants, challenges and refund executions are written and read back through it (for
+ * example order `a002870307c998de`, REFUNDED). What production has NOT shown is the unique-
+ * violation path (`code 23505` plus `constraint`) under a real race, or a dropped connection;
+ * the embedded-Postgres tests pin the SQL and the row mapping, not the driver.
  */
 export function neonExecutor(connectionString: string): SqlExecutor {
   if (!connectionString) throw new Error('neonExecutor: empty connection string');

@@ -2,8 +2,8 @@
  * Offline. Drives the real handler against the fake chain through the same wiring a request
  * would use, so what is exercised is the endpoint, not a copy of its logic.
  *
- * It does NOT prove anything about `getAccountByAddress` on a real node: that RPC method's
- * response shape has never been observed from this repository. See README-DEV.md, gap H1.
+ * It proves nothing about the real node. The live `getAccountByAddress` shape was observed in
+ * production (2026-09-14); see `server/domain/nimiq.ts` `RpcAccount`.
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';

@@ -5,7 +5,9 @@
  * then checks three separate things, and all three must hold:
  *   1. the text parses as a canonical challenge and matches a stored, unconsumed nonce,
  *   2. the signature verifies over that exact text,
- *   3. the address recovered from the signature equals the verified payer of the order.
+ *   3. the address recovered from the signature equals `refundTo`, the refund destination
+ *      resolved from the chain when the challenge was issued (the payer, or the wallet that
+ *      funded the payer's HTLC; `resolveRefundDestination`).
  *
  * Canonical form, seven lines, `\n` separated, no trailing newline:
  *
