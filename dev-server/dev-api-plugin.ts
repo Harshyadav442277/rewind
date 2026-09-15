@@ -36,7 +36,7 @@ const ROUTES: Route[] = [
   { pattern: /^\/api\/merchant\/challenge$/, module: '/api/merchant/challenge.ts' },
   { pattern: /^\/api\/merchant\/register$/, module: '/api/merchant/register.ts' },
   { pattern: /^\/api\/merchants\/(?<id>[^/]+)$/, module: '/api/merchants/[id].ts' },
-  { pattern: /^\/api\/dev\/fake-chain$/, module: '/api/dev/fake-chain.ts' },
+  { pattern: /^\/api\/dev\/fake-chain$/, module: '/api/_dev/fake-chain.ts' },
   { pattern: /^\/api\/health$/, module: '/api/health.ts' },
 ];
 

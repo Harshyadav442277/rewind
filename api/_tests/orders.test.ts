@@ -4,10 +4,10 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import handler from './orders.js';
-import { getDeps, resetDeps } from './_lib/deps.js';
-import { resetRateLimits } from './_lib/ratelimit.js';
-import type { ApiResponse } from './_lib/http.js';
+import handler from '../orders.js';
+import { getDeps, resetDeps } from '../_lib/deps.js';
+import { resetRateLimits } from '../_lib/ratelimit.js';
+import type { ApiResponse } from '../_lib/http.js';
 
 interface Captured {
   status: number;

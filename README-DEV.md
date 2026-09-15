@@ -40,7 +40,7 @@ RUN_RPC_TESTS=1 npx vitest run server/chain/rpc-chain-reader.integration.test.ts
 loads the root `.env.local` without overriding variables already set. In production Vercel routes `api/` itself.
 
 With no Nimiq Pay provider in a **development** build the app uses `FakeWallet`, which drives the server's fake chain
-through `/api/dev/fake-chain` (that endpoint answers 404 unless `REWIND_CHAIN` is `fake` and `VERCEL_ENV` is not
+through `/api/dev/fake-chain` (served by `api/_dev/fake-chain.ts` through the dev plugin only; the underscore keeps it out of the deployment, and it also refuses unless `REWIND_CHAIN` is `fake` and `VERCEL_ENV` is not
 `production`). A production build never uses the fake wallet: without a provider it says "open Rewind inside the Nimiq
 Pay app" and creates no order. The fake wallet has one address, so it cannot pay a shop it registered itself.
 
