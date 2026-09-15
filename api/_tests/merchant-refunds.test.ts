@@ -4,7 +4,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import handler from './refunds.js';
+import handler from '../merchant/refunds.js';
 import { DEMO_MERCHANT_ID, getDeps, getFakeSignatureVerifier, resetDeps } from '../_lib/deps.js';
 import { issueAndRecordMerchantChallenge } from '../_lib/merchant-auth.js';
 import { resetRateLimits } from '../_lib/ratelimit.js';

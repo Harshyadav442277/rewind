@@ -7,10 +7,10 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import handler from './health.js';
-import { DEMO_MERCHANT, getDeps, getFakeChain, resetDeps } from './_lib/deps.js';
-import { resetRateLimits } from './_lib/ratelimit.js';
-import type { ApiRequest, ApiResponse } from './_lib/http.js';
+import handler from '../health.js';
+import { DEMO_MERCHANT, getDeps, getFakeChain, resetDeps } from '../_lib/deps.js';
+import { resetRateLimits } from '../_lib/ratelimit.js';
+import type { ApiRequest, ApiResponse } from '../_lib/http.js';
 
 interface Captured {
   status: number;
