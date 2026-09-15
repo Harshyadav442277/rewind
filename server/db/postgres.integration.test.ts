@@ -25,6 +25,7 @@ import type { MerchantNonce, Order, RefundChallenge, RefundExecution } from '../
 import type { DomainDeps } from '../domain/deps.js';
 import type { ChainReader } from '../domain/ports.js';
 import { DEFAULT_TREASURY_CAPS } from '../domain/demo-treasury.js';
+import { ORDER_STATES, REFUND_BOARD_STATES } from '../domain/states.js';
 import {
   executeTreasuryRefund,
   reserveRefund,
@@ -560,7 +561,7 @@ describe.skipIf(!embedded)('PostgresRepository against a real Postgres engine', 
       expect(unsettled.map((e) => e.id)).toEqual(['rex_o1']);
     });
 
-    it('finds an order by its verified payment hash, and lists newest first', async () => {
+    it('finds an order by its verified payment hash', async () => {
       const hash = '9'.repeat(64);
       await repo.createOrder(orderRow({ id: 'old', createdAt: NOW - 1_000, updatedAt: NOW - 1_000 }));
       await repo.createOrder(
@@ -568,8 +569,38 @@ describe.skipIf(!embedded)('PostgresRepository against a real Postgres engine', 
       );
       expect((await repo.getOrderByPaymentTx(hash))?.id).toBe('new');
       expect(await repo.getOrderByPaymentTx('0'.repeat(64))).toBeNull();
-      expect((await repo.listOrders()).map((o) => o.id)).toEqual(['new', 'old']);
-      expect((await repo.listOrders(1)).map((o) => o.id)).toEqual(['new']);
+    });
+
+    it("lists one shop's refund orders newest first, in exactly REFUND_BOARD_STATES", async () => {
+      // One shop order per state, one second apart, plus a newer Demo Store order in every
+      // state. The SQL spells the state list out, so this is what holds it to the constant.
+      for (const [i, state] of ORDER_STATES.entries()) {
+        const paid = state !== 'CREATED' && state !== 'PAYMENT_PENDING' && state !== 'EXPIRED';
+        await repo.createOrder(
+          orderRow({
+            id: `shop_${i}`,
+            state,
+            merchantId: PLAIN_MERCHANT.id,
+            merchantAddress: PLAIN_MERCHANT.address,
+            refundSource: 'MERCHANT_WALLET',
+            refunderAddress: PLAIN_MERCHANT.address,
+            createdAt: NOW + i * 1_000,
+            updatedAt: NOW + i * 1_000,
+            ...(paid ? { paymentTxHash: `${i}`.repeat(64), payerAddress: PAYER } : {}),
+          }),
+        );
+        await repo.createOrder(
+          orderRow({ id: `demo_${i}`, state, createdAt: NOW + 60_000 + i, updatedAt: NOW + 60_000 + i }),
+        );
+      }
+
+      const listed = await repo.listMerchantRefundOrders(PLAIN_MERCHANT.id, 50);
+      expect(listed.map((o) => o.state).sort()).toEqual([...REFUND_BOARD_STATES].sort());
+      expect(listed.every((o) => o.merchantId === PLAIN_MERCHANT.id)).toBe(true);
+      const created = listed.map((o) => o.createdAt);
+      expect(created).toEqual([...created].sort((a, b) => b - a));
+      expect(await repo.listMerchantRefundOrders(PLAIN_MERCHANT.id, 2)).toHaveLength(2);
+      expect(await repo.listMerchantRefundOrders('nobody', 50)).toHaveLength(0);
     });
 
     it('filters the treasury ledger by wallet and by window', async () => {

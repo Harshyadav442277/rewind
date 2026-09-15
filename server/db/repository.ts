@@ -73,7 +73,12 @@ export interface Repository {
   createOrder(order: Order): Promise<Order>;
   getOrder(id: string): Promise<Order | null>;
   getOrderByPaymentTx(hash: string): Promise<Order | null>;
-  listOrders(limit?: number): Promise<Order[]>;
+  /**
+   * One merchant's orders in `REFUND_BOARD_STATES`, newest first: the shop's refund board.
+   * Filtered by merchant in the query, so a busy Demo Store can never push a shop's waiting
+   * refund request out of view.
+   */
+  listMerchantRefundOrders(merchantId: string, limit: number): Promise<Order[]>;
   /**
    * Compare-and-set. Applies `patch` only if the order is currently in `expectedState`.
    * Returns the updated order, or null if the state had already moved.

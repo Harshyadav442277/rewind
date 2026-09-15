@@ -87,8 +87,7 @@ export function MerchantScreen() {
   const load = useCallback(async (current: MerchantSession) => {
     try {
       const response = await api.listMerchantRequests(current);
-      // The server scopes a signed read to this merchant. Filtering again costs nothing and
-      // keeps the development loop, where reads can come back unscoped, honest too.
+      // The server scopes every read to the signed-in merchant. Filtering again costs nothing.
       setRows(response.requests.filter((row) => row.order.merchantId === current.merchantId));
       setError(null);
     } catch (err) {

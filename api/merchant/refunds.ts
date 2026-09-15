@@ -37,23 +37,15 @@ import {
  *   in `x-rewind-merchant-challenge`, and the hex public key and signature in
  *   `x-rewind-merchant-publickey` / `x-rewind-merchant-signature`. The challenge action is
  *   `list`, it is bound to no order, and it is NOT consumed — a board polling every few
- *   seconds must not need a wallet dialog every few seconds. The answer is then SCOPED to the
+ *   seconds must not need a wallet dialog every few seconds. The answer is SCOPED to the
  *   merchant named in that challenge: a merchant sees their own orders and nobody else's.
- *   That closes the second half of gap S1.
  *
- * In the fake-chain developer loop (`merchantAuthRequired()` false) an unsigned GET is still
- * answered, unscoped, so `npm run dev` walks the flow with no wallet. That default inverts
- * the moment REWIND_CHAIN=rpc or a production deployment is configured.
+ * GET always needs the signed headers, in every mode, because there is no unscoped list to
+ * fall back to. In the fake-chain developer loop the fake wallet signs them.
  */
 
-const LIST_STATES = [
-  'REFUND_REQUESTED',
-  'REFUND_APPROVED',
-  'REFUND_BROADCAST',
-  'REFUNDED',
-  'REFUND_FAILED',
-  'REJECTED',
-];
+/** How many of a shop's refund orders one board read returns, newest first. */
+const BOARD_LIMIT = 50;
 
 function headerValue(req: ApiRequest, name: string): string | null {
   const raw = req.headers[name];
@@ -81,57 +73,46 @@ export default withErrors(async (req: ApiRequest, res: ApiResponse) => {
     const encoded = headerValue(req, 'x-rewind-merchant-challenge');
     const publicKey = headerValue(req, 'x-rewind-merchant-publickey');
     const signature = headerValue(req, 'x-rewind-merchant-signature');
-    const authRequired = merchantAuthRequired();
-
-    let scopedMerchantId: string | null = null;
-
-    if (encoded || publicKey || signature || authRequired) {
-      if (!encoded || !publicKey || !signature) {
-        return sendError(
-          res,
-          'bad_request',
-          'Sign in with your merchant wallet to see refund requests.',
-          'x-rewind-merchant-challenge, -publickey and -signature are all required',
-        );
-      }
-      const message = decodeChallengeHeader(encoded);
-      if (message === null) {
-        return sendError(
-          res,
-          'bad_request',
-          'That merchant sign-in could not be read.',
-          'x-rewind-merchant-challenge must be base64 of the challenge text',
-        );
-      }
-      // Who the text claims to be is read first, but it proves nothing: the merchant record
-      // comes from the repository and the address is compared with the recovered signer.
-      const claimed = /^merchant=(.+)$/m.exec(message);
-      const merchant = claimed?.[1] ? await deps.repo.getMerchant(claimed[1]) : null;
-      if (!merchant) {
-        return sendError(res, 'bad_request', 'That merchant sign-in was not accepted.', 'unknown merchant');
-      }
-      const auth = await authenticateMerchant(deps, merchant, 'list', LIST_ORDER_SENTINEL, {
-        message,
-        publicKey,
-        signature,
-      });
-      if (!auth.ok) {
-        return sendError(
-          res,
-          'bad_request',
-          'That merchant sign-in was not accepted.',
-          `${auth.reason}: ${auth.detail}`,
-        );
-      }
-      scopedMerchantId = merchant.id;
+    if (!encoded || !publicKey || !signature) {
+      return sendError(
+        res,
+        'bad_request',
+        'Sign in with your merchant wallet to see refund requests.',
+        'x-rewind-merchant-challenge, -publickey and -signature are all required',
+      );
     }
+    const message = decodeChallengeHeader(encoded);
+    if (message === null) {
+      return sendError(
+        res,
+        'bad_request',
+        'That merchant sign-in could not be read.',
+        'x-rewind-merchant-challenge must be base64 of the challenge text',
+      );
+    }
+    // Who the text claims to be is read first, but it proves nothing: the merchant record
+    // comes from the repository and the address is compared with the recovered signer.
+    const claimed = /^merchant=(.+)$/m.exec(message);
+    const merchant = claimed?.[1] ? await deps.repo.getMerchant(claimed[1]) : null;
+    if (!merchant) {
+      return sendError(res, 'bad_request', 'That merchant sign-in was not accepted.', 'unknown merchant');
+    }
+    const auth = await authenticateMerchant(deps, merchant, 'list', LIST_ORDER_SENTINEL, {
+      message,
+      publicKey,
+      signature,
+    });
+    if (!auth.ok) {
+      return sendError(
+        res,
+        'bad_request',
+        'That merchant sign-in was not accepted.',
+        `${auth.reason}: ${auth.detail}`,
+      );
+    }
+    const scopedMerchantId = merchant.id;
 
-    const orders = await deps.repo.listOrders(50);
-    const interesting = orders.filter(
-      (o) =>
-        LIST_STATES.includes(o.state) &&
-        (scopedMerchantId === null || o.merchantId === scopedMerchantId),
-    );
+    const interesting = await deps.repo.listMerchantRefundOrders(scopedMerchantId, BOARD_LIMIT);
     // Polling drives the state machine here too, so a merchant watching this list sees a
     // refund reach REFUNDED without having to open the order. Every step is idempotent.
     for (const order of interesting) {
@@ -159,7 +140,7 @@ export default withErrors(async (req: ApiRequest, res: ApiResponse) => {
     return sendJson(res, 200, {
       requests: rows,
       scopedToMerchantId: scopedMerchantId,
-      authenticated: scopedMerchantId !== null,
+      authenticated: true,
     });
   }
 
