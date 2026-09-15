@@ -230,4 +230,71 @@ describe('payment verification', () => {
     const expired = await expireOrderIfStale(h.deps, order.id);
     expect(expired?.state).toBe('EXPIRED');
   });
+
+  it('does not expire a stale order whose payment is on chain, and marks it paid instead', async () => {
+    const h = makeHarness();
+    const order = await freshOrder(h);
+    const tx = h.chain.include({
+      from: PAYER,
+      to: order.merchantAddress,
+      value: AMOUNT_LUNA,
+      data: buildReference('P', order.id),
+      timestamp: h.clock.nowMs(),
+    });
+    h.chain.advanceHeight(h.deps.config.minConfirmations);
+    // The wallet reported the hash, but nothing read the chain before the order went stale.
+    await submitPaymentHint(h.deps, order.id, tx.hash);
+    h.clock.advance(h.deps.config.orderTtlMs + 1);
+
+    const { expireOrderIfStale } = await import('./order-service.js');
+    const result = await expireOrderIfStale(h.deps, order.id);
+    expect(result?.state).toBe('PAID');
+    expect((await h.deps.repo.getOrder(order.id))?.state).toBe('PAID');
+  });
+
+  it('keeps a stale order waiting while its payment is on chain but still shallow', async () => {
+    const h = makeHarness();
+    const order = await freshOrder(h);
+    const tx = h.chain.include({
+      from: PAYER,
+      to: order.merchantAddress,
+      value: AMOUNT_LUNA,
+      data: buildReference('P', order.id),
+      timestamp: h.clock.nowMs(),
+    });
+    await submitPaymentHint(h.deps, order.id, tx.hash);
+    h.clock.advance(h.deps.config.orderTtlMs + 1);
+
+    const { expireOrderIfStale } = await import('./order-service.js');
+    const result = await expireOrderIfStale(h.deps, order.id);
+    expect(result?.state).toBe('PAYMENT_PENDING');
+  });
+
+  it('expires a stale order whose reported payment is nowhere on chain', async () => {
+    const h = makeHarness();
+    const order = await freshOrder(h);
+    await submitPaymentHint(h.deps, order.id, 'e'.repeat(64));
+    h.clock.advance(h.deps.config.orderTtlMs + 1);
+
+    const { expireOrderIfStale } = await import('./order-service.js');
+    const result = await expireOrderIfStale(h.deps, order.id);
+    expect(result?.state).toBe('EXPIRED');
+  });
+
+  it('leaves a stale order alone when the chain cannot be read', async () => {
+    const h = makeHarness();
+    const order = await freshOrder(h);
+    await submitPaymentHint(h.deps, order.id, 'f'.repeat(64));
+    h.clock.advance(h.deps.config.orderTtlMs + 1);
+    const blind = Object.create(h.deps.chain);
+    blind.getTransactionByHash = async () => {
+      throw new ChainUnavailableError('Transaction not found');
+    };
+
+    const { expireOrderIfStale } = await import('./order-service.js');
+    await expect(expireOrderIfStale({ ...h.deps, chain: blind }, order.id)).rejects.toBeInstanceOf(
+      ChainUnavailableError,
+    );
+    expect((await h.deps.repo.getOrder(order.id))?.state).toBe('PAYMENT_PENDING');
+  });
 });
