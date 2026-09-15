@@ -104,11 +104,13 @@ export async function submitPaymentHint(
   const order = await deps.repo.getOrder(orderId);
   if (!order) return { ok: false, reason: 'not_found', detail: orderId };
 
-  // A hint for an order already paid is a no-op, not an error, so a retried request is safe.
+  // A hint for an order already waiting on the chain, or already paid by this hash, is a no-op,
+  // not an error, so a retried request is safe. A second, different hint while the order waits
+  // is also a no-op: the first hint stays, and if it never resolves the reference scan in
+  // `verifyOrderPayment` still finds the payment. Refusing it would show a buyer whose
+  // payment went through an error screen.
   if (order.state !== 'CREATED') {
-    if (order.state === 'PAYMENT_PENDING' && order.claimedPaymentTxHash === hash) {
-      return { ok: true, order };
-    }
+    if (order.state === 'PAYMENT_PENDING') return { ok: true, order };
     if (hash !== null && order.paymentTxHash === hash) return { ok: true, order };
     return { ok: false, reason: 'wrong_state', detail: order.state };
   }
@@ -319,24 +321,36 @@ export async function verifyOrderPayment(
 }
 
 /**
- * Follows the wallet's hash hint. If the node cannot answer for that hash — the light client
- * throws "Transaction not found" for included transactions it did not broadcast itself — the
- * reference scan gets one try. A scan miss is still "we do not know", so the original
- * unavailability is rethrown rather than turned into "not included".
+ * Follows the wallet's hash hint, and falls back to the reference scan whenever the hint does not
+ * lead to a transaction:
+ *
+ *  - The node has no record of the hash. Normal for a second while it propagates, but also what
+ *    a hash that will never exist looks like — a wrong value from a wallet, or one posted by
+ *    anyone who knows the order id. Following such a hint alone would keep the order waiting
+ *    until it expires while the real payment sits on chain.
+ *  - The node cannot answer for the hash at all (the light client throws "Transaction not found"
+ *    for included transactions it did not broadcast). A scan miss is then still "we do not
+ *    know", so the original unavailability is rethrown rather than turned into "not included".
+ *
+ * The scan only finds a candidate; `verifyPayment` still decides.
  */
 async function readHintOrScan(
   deps: DomainDeps,
   order: Order,
   hash: string,
 ): Promise<ChainRead<RpcTransaction | null>> {
+  let hinted: ChainRead<RpcTransaction | null>;
   try {
-    return await deps.chain.getTransactionByHash(hash);
+    hinted = await deps.chain.getTransactionByHash(hash);
   } catch (err) {
     if (!(err instanceof ChainUnavailableError)) throw err;
     const scanned = await findPaymentByReference(deps, order);
     if (scanned.data === null) throw err;
     return scanned;
   }
+  if (hinted.data !== null) return hinted;
+  const scanned = await findPaymentByReference(deps, order);
+  return scanned.data !== null ? scanned : hinted;
 }
 
 /**
