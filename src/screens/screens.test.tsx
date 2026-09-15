@@ -337,6 +337,15 @@ describe('Order', () => {
     expect(byTestId('checked-at')?.textContent).toContain('stale');
   });
 
+  it('does not say "waiting for the chain" on a refund the chain already shows', async () => {
+    apiMock.getOrder.mockResolvedValue(
+      status({ execution: EXECUTION }, { state: 'REFUNDED', stateLabel: 'Refund verified on chain' }),
+    );
+    await render(<OrderScreen orderId={ORDER.id} />);
+    expect(text()).toContain('Sent, and found on chain.');
+    expect(text()).not.toContain('Waiting for the chain to agree');
+  });
+
   it('says "Nothing was sent yet" for an order whose payment was cancelled', async () => {
     apiMock.getOrder.mockResolvedValue(status({}, { state: 'CREATED' }));
     await render(<OrderScreen orderId={ORDER.id} />);
@@ -999,6 +1008,22 @@ describe('App shell', () => {
     await renderApp();
     expect(byTestId('dev-wallet-banner')).toBeNull();
     expect(byTestId('open-in-nimiq-pay')).toBeNull();
+  });
+
+  it.each([
+    ['#/order/abcdef0123456789', 'Order'],
+    ['#/refund/abcdef0123456789', 'Refund'],
+    ['#/receipt/abcdef0123456789', 'Receipt'],
+  ])('labels the third tab for %s as "%s", not with the raw route name', async (hash, label) => {
+    apiMock.getOrder.mockResolvedValue(status());
+    window.location.hash = hash;
+    try {
+      await renderApp();
+      const tabs = [...document.querySelectorAll('nav.tabs button')].map((b) => b.textContent);
+      expect(tabs).toEqual(['Demo Store', 'Payment links', label]);
+    } finally {
+      window.location.hash = '';
+    }
   });
 
   it('discloses on every screen what Rewind stores', async () => {
