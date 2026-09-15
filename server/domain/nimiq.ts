@@ -6,10 +6,11 @@
  *  - A transaction data field is at most 64 bytes.            (Nimiq protocol)
  *  - Sender must differ from recipient.                       (Nimiq protocol)
  *  - The public RPC returns a transaction with the fields in `RpcTransaction`.
- *    Observed on mainnet 2026-09-12 and recorded in
- *    `Hackathons/Nimiq hackathon/docs/evidence/E0-chain-access-2026-09-12.md`.
+ *    Observed on mainnet 2026-09-12 (`Hackathons/Nimiq hackathon/docs/evidence/E0-chain-access-2026-09-12.md`)
+ *    and in production since 2026-09-14. The node also returns fields Rewind does not read,
+ *    among them `fromType` and `toType` (0 basic, 2 HTLC), observed 2026-09-15.
  *
- * Nothing here has been run against a live node from this repository.
+ * This file is pure: no I/O. `server/chain/rpc-chain-reader.ts` is what talks to the node.
  */
 
 export const LUNA_PER_NIM = 100_000;
@@ -49,12 +50,13 @@ export interface RpcTransaction {
 }
 
 /**
- * An account record as returned by `getAccountByAddress`. Only the two fields Rewind reads
- * are declared; the node returns more. `balance` is Luna.
+ * An account record as returned by `getAccountByAddress`. Only the fields Rewind reads are
+ * declared; the node returns more (an HTLC also carries `recipient`, `hashRoot`, `hashCount`,
+ * `timeout`, `totalAmount`). `balance` is Luna.
  *
- * UNVERIFIED: this shape has not been observed live from this repository. `getBlockNumber`,
- * `getTransactionByHash` and `getTransactionsByAddress` have; this one has not, so
- * `RpcChainReader.getAccountByAddress` validates the two fields it needs and treats anything
+ * Observed live on `rpc.nimiqwatch.com` (2026-09-14, re-read 2026-09-15): a basic account is
+ * `{"address","balance","type":"basic"}`, and a never-used address answers the same with
+ * balance 0. `RpcChainReader.getAccountByAddress` still validates `balance` and treats anything
  * else as ChainUnavailableError rather than trusting the envelope.
  */
 export interface RpcAccount {

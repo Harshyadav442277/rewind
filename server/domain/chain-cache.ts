@@ -20,7 +20,7 @@ export interface ChainCacheOptions {
   missTtlMs?: number;
   blockNumberTtlMs?: number;
   addressTtlMs?: number;
-  /** Account balance. Short, because the health screen is the only reader and it polls. */
+  /** Account records: the health screen's balance, and the refund path's type and HTLC funder. */
   accountTtlMs?: number;
   maxEntries?: number;
 }

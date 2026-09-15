@@ -781,8 +781,11 @@ export interface ResumeSummary {
 }
 
 /**
- * Run at boot and on a schedule. For every unsettled obligation: look at the chain first,
- * then re-send the stored bytes if and only if nothing is there.
+ * For every unsettled obligation: look at the chain first, then re-send the stored bytes if and
+ * only if nothing is there. The crash-recovery tests drive recovery through this sweep. Nothing
+ * in production calls it yet: on Vercel the same per-order steps run when the order page or the
+ * shop board polls (`api/orders/[id].ts`, `api/merchant/refunds.ts`). A scheduled caller is the
+ * fix if an approved refund is ever seen idle.
  */
 export async function resumeUnsettledRefunds(deps: DomainDeps): Promise<ResumeSummary> {
   const pending = await deps.repo.listUnsettledRefundExecutions();

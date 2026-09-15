@@ -190,11 +190,12 @@ export class RpcChainReader implements ChainReader {
   }
 
   /**
-   * Balance of one address. Used only by the health endpoint.
+   * Balance, type and HTLC funder of one address. Read by the health endpoint (balance) and by
+   * the refund path (type and funder; see `ChainReader.getAccountByAddress`).
    *
-   * UNVERIFIED: unlike the three reads above, this method's response shape has NOT been
-   * observed live from this repository. It is validated defensively — a missing or
-   * non-numeric `balance` is ChainUnavailableError, never a zero balance, because a
+   * Response shape observed live in production since 2026-09-14 (treasury balance on
+   * `/api/health`; HTLC `NQ66…` with `type "htlc"` and `sender`). Still validated defensively —
+   * a missing or non-numeric `balance` is ChainUnavailableError, never a zero balance, because a
    * fabricated zero would pause the demo for the wrong reason.
    */
   async getAccountByAddress(address: string): Promise<ChainRead<RpcAccount>> {

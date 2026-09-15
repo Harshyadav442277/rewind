@@ -4,7 +4,8 @@
  * What this proves: the transaction builds, signs, passes `verify()` against mainnet rules,
  * round-trips through serialisation with an identical hash, converges on a 1 Luna/signed-byte
  * fee, and refuses the inputs that would produce an invalid or dangerous transfer. What it
- * does not prove: that a mainnet node accepts it. `pushTransaction` has never been called.
+ * does not prove: that a node accepts it. That was shown once on mainnet from production
+ * (refund `0989689e…`, block 61,603,650, 2026-09-14), not by this file.
  */
 
 import { describe, expect, it, vi } from 'vitest';

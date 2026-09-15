@@ -225,8 +225,9 @@ export class FakeChain {
   height = 1_000_000;
   networkId: number | string = 24;
   /**
-   * Balances, for `getAccountByAddress`. Only the health endpoint reads them, and nothing
-   * in the money path does — a fake balance must never look like evidence of a transfer.
+   * Balances, for `getAccountByAddress`. Only the health endpoint reads a balance; the money
+   * path reads the account type and HTLC funder (`setHtlc`), never the balance — a fake balance
+   * must never look like evidence of a transfer.
    */
   readonly balances = new Map<string, number>();
   /** What an address with no explicit balance reports. 100 NIM, so the demo is not paused. */

@@ -21,10 +21,12 @@
  *     parameter and return the hash, but `pushTransaction` validates into the mempool, so a
  *     transaction the node will not relay fails loudly instead of vanishing.
  *
- * UNVERIFIED: nothing built by this class has ever been broadcast. The unit tests use an
- * ephemeral key and a fake RPC, and assert the build, the fee convergence, `verify()` and the
- * serialisation round trip. No treasury has been funded and `pushTransaction` has never been
- * called from this repository.
+ * Run on mainnet from production (Vercel): this class built and `RpcTxBroadcaster` pushed the
+ * Demo Store refund `0989689ee542375659559e5a73196d3f3cf0e622f03785b2de553097e5006507`
+ * (block 61,603,650, 2026-09-14, 1000 Luna + 188 Luna fee, `executionResult` true). It also
+ * built `ca84b355…`, which the chain included with `executionResult` false because its
+ * recipient was an HTLC; that is why refunds now go to an HTLC's funder. The unit tests use an
+ * ephemeral key and a fake RPC.
  */
 
 import {
