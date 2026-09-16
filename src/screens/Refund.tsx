@@ -99,12 +99,13 @@ export function RefundScreen({ orderId }: { orderId: string }) {
         </p>
         {refundSource === 'MERCHANT_WALLET' ? (
           <p className="muted" data-testid="refund-sender">
-            The shop then approves the request and sends the refund from its own wallet.
+            The shop then approves the request and sends the refund from its own wallet, and
+            pays the network fee for it. You get the full amount back.
           </p>
         ) : refundSource === 'DEMO_TREASURY' ? (
           <p className="muted" data-testid="refund-sender">
             The Demo Store approves a valid request automatically and sends the refund from its
-            treasury.
+            treasury. It pays the network fee, so you get the full amount back.
           </p>
         ) : null}
         {refundTo ? (

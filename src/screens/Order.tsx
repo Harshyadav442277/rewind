@@ -40,11 +40,15 @@ export function stepsFor(status: OrderStatus): Step[] {
   const index = FLOW.indexOf(s as (typeof FLOW)[number]);
   const failed = DEAD_ENDS.includes(s);
 
+  // The last state is an end, not a step in progress: a tester read the blue "now" dot on
+  // "Refund verified on chain" as the refund being unfinished (Skool feedback, 2026-09-16).
+  const done = index === FLOW.length - 1;
+
   const mark = (position: number): Step['status'] => {
     if (failed) return position <= 2 ? 'done' : 'bad';
     if (index < 0) return 'todo';
     if (position < index) return 'done';
-    if (position === index) return 'now';
+    if (position === index) return done ? 'done' : 'now';
     return 'todo';
   };
 
