@@ -63,7 +63,8 @@ export function DemoStoreScreen() {
         <p data-testid="auto-approve-disclosure">{AUTO_APPROVE_DISCLOSURE}.</p>
         <p className="muted" data-testid="refund-destination">
           {REFUND_DESTINATION_NOTE} A refund is a new transaction from the Demo Store, and
-          Rewind only calls it done once the chain says so.
+          Rewind only calls it done once the chain says so. The Demo Store pays the network fee
+          on it, so the full 0.01 NIM comes back to you.
         </p>
       </Card>
 

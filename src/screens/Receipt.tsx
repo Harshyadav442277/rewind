@@ -167,6 +167,11 @@ export function ReceiptScreen({ orderId }: { orderId: string }) {
             <Kv label="Explorer">
               <ExplorerLink url={execution.refundExplorerUrl} label="refund-explorer" />
             </Kv>
+            <Kv label="Network fee">
+              {execution.source === 'DEMO_TREASURY'
+                ? 'paid by the Demo Store, not taken from your refund'
+                : "paid by the shop, not taken from your refund"}
+            </Kv>
             {execution.failureReason ? <Kv label="Failure">{execution.failureReason}</Kv> : null}
           </dl>
         ) : (
