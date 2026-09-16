@@ -65,7 +65,7 @@ vi.mock('../wallet', () => ({
 
 import { App, DATA_NOTICE, WALLET_READY_EVENT } from '../App';
 import { AUTO_APPROVE_DISCLOSURE, DemoStoreScreen, REFUND_DESTINATION_NOTE } from './DemoStore';
-import { OrderScreen } from './Order';
+import { OrderScreen, stepsFor } from './Order';
 import { RefundScreen } from './Refund';
 import { REFUND_CLAIM, ReceiptScreen } from './Receipt';
 import { MerchantScreen, REFUND_SENT_NOTE, SHARE_NOTE } from './Merchant';
@@ -346,6 +346,27 @@ describe('Order', () => {
     expect(text()).not.toContain('Waiting for the chain to agree');
   });
 
+  // A tester read the blue "in progress" dot on the last step as the refund being unfinished
+  // (Skool feedback, 2026-09-16). A finished refund must mark every step done.
+  it('marks every step done once the refund is verified on chain', () => {
+    const steps = stepsFor(
+      status({ execution: EXECUTION }, { state: 'REFUNDED', stateLabel: 'Refund verified on chain' }),
+    );
+    expect(steps[steps.length - 1]).toMatchObject({
+      label: 'Refund verified on chain',
+      status: 'done',
+    });
+    expect(steps.map((step) => step.status)).toEqual(Array(steps.length).fill('done'));
+  });
+
+  it('still marks the state in progress while the refund is only broadcast', () => {
+    const steps = stepsFor(
+      status({ execution: EXECUTION }, { state: 'REFUND_BROADCAST', stateLabel: 'Refund sent' }),
+    );
+    expect(steps[5]?.status).toBe('now');
+    expect(steps[6]?.status).toBe('todo');
+  });
+
   it('says "Nothing was sent yet" for an order whose payment was cancelled', async () => {
     apiMock.getOrder.mockResolvedValue(status({}, { state: 'CREATED' }));
     await render(<OrderScreen orderId={ORDER.id} />);
@@ -449,8 +470,9 @@ describe('Refund request', () => {
     });
     await render(<RefundScreen orderId={ORDER.id} />);
     expect(byTestId('refund-sender')?.textContent).toContain(
-      'The shop then approves the request and sends the refund from its own wallet.',
+      'The shop then approves the request and sends the refund from its own wallet',
     );
+    expect(byTestId('refund-sender')?.textContent).toContain('You get the full amount back');
     expect(text()).not.toContain('Demo Store approves');
   });
 
@@ -559,6 +581,7 @@ describe('Receipt', () => {
     );
     await render(<ReceiptScreen orderId={ORDER.id} />);
     expect(byTestId('refund-claim')?.textContent).toContain(REFUND_CLAIM);
+    expect(text()).toContain('paid by the Demo Store, not taken from your refund');
     expect(text()).not.toContain('reversible');
     expect(text()).not.toContain('guaranteed');
     expect(byTestId('payment-explorer')?.getAttribute('href')).toBe(
