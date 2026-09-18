@@ -168,6 +168,7 @@ Names only. No values are in this repository.
 | `REWIND_MIN_CONFIRMATIONS` | Confirmations before a transfer counts (default 2) |
 | `REWIND_REFUND_FEE_LUNA` | Absolute treasury refund fee; `0` (default) means 1 Luna per signed byte |
 | `REWIND_CAP_PER_REFUND_LUNA`, `REWIND_CAP_TOTAL_LUNA` | Overrides for the per-refund cap (default 1 NIM) and the lifetime ceiling (default 50 NIM) |
+| `REWIND_CAP_REFUNDS_PER_WALLET` | Demo Store refunds one wallet may receive per rolling 24 hours (default 3). The per-wallet amount, hourly and lifetime caps still apply |
 | `REWIND_TREASURY_FLOOR_LUNA` | Below this balance the Demo Store pauses (default 0.5 NIM) |
 | `REWIND_DEMO_AUTO_APPROVE` | `off` makes the Demo Store a two-person flow; anything else leaves automatic approval on, as the store screen discloses |
 | `REWIND_EXPLORER_BASE` | Explorer link prefix; default `https://nimiq.watch/#` on mainnet, `https://test.nimiq.watch/#` on testnet |

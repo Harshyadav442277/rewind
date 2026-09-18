@@ -150,6 +150,10 @@ function buildConfig(): DomainConfig {
       ...DEFAULT_TREASURY_CAPS,
       maxLunaPerRefund: int('REWIND_CAP_PER_REFUND_LUNA', DEFAULT_TREASURY_CAPS.maxLunaPerRefund),
       maxLunaTotal: int('REWIND_CAP_TOTAL_LUNA', DEFAULT_TREASURY_CAPS.maxLunaTotal),
+      maxRefundsPerWalletPerWindow: int(
+        'REWIND_CAP_REFUNDS_PER_WALLET',
+        DEFAULT_TREASURY_CAPS.maxRefundsPerWalletPerWindow,
+      ),
     },
   };
 }
